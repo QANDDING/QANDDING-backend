@@ -74,6 +74,9 @@ app:
     enabled: ${APP_RATELIMIT_ENABLED:true}
     requests: ${APP_RATELIMIT_REQUESTS:100}
     seconds: ${APP_RATELIMIT_SECONDS:60}
+  gemini:
+    api-key: ${APP_GEMINI_API_KEY:}
+    model: ${APP_GEMINI_MODEL:gemini-1.5-flash}
 
 ---
 spring:
