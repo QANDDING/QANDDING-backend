@@ -1,0 +1,46 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+log*/
+
+# Build
+/build/
+/out/
+/bin/
+/target/
+*.class
+
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# VS Code
+.vscode/
+
+# Env
+.env
+.env.*
+
+# Spring
+*.pid
+
+# Coverage
+coverage/
+*.exec
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# Others
+node_modules/

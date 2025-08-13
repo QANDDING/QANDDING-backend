@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: qandding-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/qandding?characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:qandding}
+    password: ${DB_PASSWORD:qandding_pw}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+    open-in-view: false
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope: openid, email, profile
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+server:
+  port: 8080
+
+app:
+  oauth:
+    allowed-domain: ${APP_OAUTH_ALLOWED_DOMAIN:mju.ac.kr}
+    redirect-url: ${APP_OAUTH_REDIRECT_URL:http://localhost:3000/oauth/callback}
+  jwt:
+    secret: ${APP_JWT_SECRET:change-me-to-a-long-random-secret}
+    expires-minutes: ${APP_JWT_EXPIRES_MINUTES:15}
+    cookie:
+      name: ${APP_JWT_COOKIE_NAME:access_token}
+      domain: ${APP_JWT_COOKIE_DOMAIN:localhost}
+      path: ${APP_JWT_COOKIE_PATH:/}
+      secure: ${APP_JWT_COOKIE_SECURE:false}
+      http-only: ${APP_JWT_COOKIE_HTTP_ONLY:true}
+      same-site: ${APP_JWT_COOKIE_SAME_SITE:Lax}
+  refresh-token:
+    ttl-days: ${APP_REFRESH_TTL_DAYS:14}
+    cookie:
+      name: ${APP_REFRESH_COOKIE_NAME:refresh_token}
+      domain: ${APP_REFRESH_COOKIE_DOMAIN:localhost}
+      path: ${APP_REFRESH_COOKIE_PATH:/}
+      secure: ${APP_REFRESH_COOKIE_SECURE:false}
+      http-only: ${APP_REFRESH_COOKIE_HTTP_ONLY:true}
+      same-site: ${APP_REFRESH_COOKIE_SAME_SITE:Lax}
+  s3:
+    bucket: ${APP_S3_BUCKET:your-bucket}
+    region: ${APP_S3_REGION:ap-northeast-2}
+    url-expire-seconds: ${APP_S3_URL_EXPIRE_SECONDS:300}
+    upload-prefix: ${APP_S3_UPLOAD_PREFIX:uploads/}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+    allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PATCH,PUT,DELETE,OPTIONS}
+    allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
+    exposed-headers: ${APP_CORS_EXPOSED_HEADERS:Location}
+    allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:true}
+    max-age-seconds: ${APP_CORS_MAX_AGE_SECONDS:3600}
+  token-blacklist:
+    enabled: ${APP_TOKEN_BLACKLIST_ENABLED:true}
+  ratelimit:
+    enabled: ${APP_RATELIMIT_ENABLED:true}
+    requests: ${APP_RATELIMIT_REQUESTS:100}
+    seconds: ${APP_RATELIMIT_SECONDS:60}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://mysql:3306/qandding?characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true
+
+logging:
+  level:
+    org.hibernate.SQL: warn
