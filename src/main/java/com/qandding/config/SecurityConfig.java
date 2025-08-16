@@ -83,20 +83,17 @@ public class SecurityConfig {
 	private final UserRepository userRepository;
 	private final JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter;
 	private final CorsConfigurationSource corsConfigurationSource;
-	private final TokenBlacklistService tokenBlacklistService;
 	private final RefreshTokenService refreshTokenService;
 	private final RateLimitFilter rateLimitFilter;
 
 	public SecurityConfig(UserRepository userRepository,
 	                     JwtCookieAuthenticationFilter jwtCookieAuthenticationFilter,
 	                     CorsConfigurationSource corsConfigurationSource,
-	                     TokenBlacklistService tokenBlacklistService,
 	                     RefreshTokenService refreshTokenService,
 	                     RateLimitFilter rateLimitFilter) {
 		this.userRepository = userRepository;
 		this.jwtCookieAuthenticationFilter = jwtCookieAuthenticationFilter;
 		this.corsConfigurationSource = corsConfigurationSource;
-		this.tokenBlacklistService = tokenBlacklistService;
 		this.refreshTokenService = refreshTokenService;
 		this.rateLimitFilter = rateLimitFilter;
 	}
