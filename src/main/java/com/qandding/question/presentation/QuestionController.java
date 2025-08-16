@@ -1,53 +1,26 @@
 package com.qandding.question.presentation;
 
 import com.qandding.common.paging.PageResponse;
-import com.qandding.common.error.BusinessException;
-import com.qandding.common.error.ErrorCode;
-import com.qandding.professor.repository.ProfessorRepository;
-import com.qandding.question.domain.QuestionImage;
-import com.qandding.question.domain.QuestionPost;
 import com.qandding.question.presentation.dto.QuestionDtos;
-import com.qandding.question.repository.QuestionImageRepository;
-import com.qandding.question.repository.QuestionPostRepository;
-import com.qandding.question.repository.QuestionQueryRepository;
+import com.qandding.question.service.QuestionService;
 import com.qandding.security.CustomUserPrincipal;
-import com.qandding.subject.repository.SubjectRepository;
-import com.qandding.user.domain.User;
-import com.qandding.user.repository.UserRepository;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/questions")
 public class QuestionController {
-	private final QuestionPostRepository questionPostRepository;
-	private final QuestionQueryRepository questionQueryRepository;
-	private final QuestionImageRepository questionImageRepository;
-	private final UserRepository userRepository;
-	private final SubjectRepository subjectRepository;
-	private final ProfessorRepository professorRepository;
+	private final QuestionService questionService;
 
-	public QuestionController(QuestionPostRepository questionPostRepository,
-	                          QuestionQueryRepository questionQueryRepository,
-	                          QuestionImageRepository questionImageRepository,
-	                          UserRepository userRepository,
-	                          SubjectRepository subjectRepository,
-	                          ProfessorRepository professorRepository) {
-		this.questionPostRepository = questionPostRepository;
-		this.questionQueryRepository = questionQueryRepository;
-		this.questionImageRepository = questionImageRepository;
-		this.userRepository = userRepository;
-		this.subjectRepository = subjectRepository;
-		this.professorRepository = professorRepository;
+	public QuestionController(QuestionService questionService) {
+		this.questionService = questionService;
 	}
 
 	public record CreateQuestionRequest(
@@ -59,20 +32,17 @@ public class QuestionController {
 	) {}
 
 	@PostMapping
-	@Transactional
 	public ResponseEntity<Long> create(@AuthenticationPrincipal CustomUserPrincipal principal,
 	                                  @RequestBody CreateQuestionRequest req) {
-		User user = userRepository.findById(principal.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-		var subject = subjectRepository.findById(req.subjectId()).orElseThrow(() -> new BusinessException(ErrorCode.SUBJECT_NOT_FOUND));
-		var professor = professorRepository.findById(req.professorId()).orElseThrow(() -> new BusinessException(ErrorCode.PROFESSOR_NOT_FOUND));
-		QuestionPost post = questionPostRepository.save(new QuestionPost(user, professor, subject, req.title(), req.content()));
-		if (req.imageUrls() != null) {
-			int i = 0;
-			for (String url : req.imageUrls()) {
-				questionImageRepository.save(new QuestionImage(post, url, i++));
-			}
-		}
-		return ResponseEntity.ok(post.getId());
+		Long id = questionService.createQuestion(
+				principal.getUserId(),
+				req.subjectId(),
+				req.professorId(),
+				req.title(),
+				req.content(),
+				req.imageUrls()
+		);
+		return ResponseEntity.ok(id);
 	}
 
 	@GetMapping
@@ -80,42 +50,28 @@ public class QuestionController {
 			@RequestParam(required = false) Long subjectId,
 			@RequestParam(required = false) Long professorId,
 			@PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
-		var page = questionQueryRepository.findSummaries(subjectId, professorId, pageable);
+		var page = questionService.findQuestions(subjectId, professorId, pageable);
 		return ResponseEntity.ok(PageResponse.of(page));
 	}
 
 	@GetMapping("/{id}")
 	public ResponseEntity<QuestionDtos.Detail> get(@PathVariable Long id) {
-		QuestionPost q = questionPostRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
-		List<String> images = questionImageRepository
-			.findByQuestionPostIdOrderBySortOrderAsc(id)
-			.stream().map(QuestionImage::getUrl).collect(Collectors.toList());
-		QuestionDtos.Detail dto = new QuestionDtos.Detail(
-				q.getId(), q.getTitle(), q.getContent(), q.getUser().getNickname(),
-				q.getSubject().getName(), q.getProfessor().getName(), q.getCreatedAt(), images);
-		return ResponseEntity.ok(dto);
+		return ResponseEntity.ok(questionService.getQuestionDetail(id));
 	}
 
 	@DeleteMapping("/{id}")
-	@Transactional
 	public ResponseEntity<Void> delete(@AuthenticationPrincipal CustomUserPrincipal principal, @PathVariable Long id) {
-		QuestionPost post = questionPostRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
-		if (!post.getUser().getId().equals(principal.getUserId())) {
-			throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
-		}
-		questionPostRepository.delete(post);
+		questionService.deleteQuestion(principal.getUserId(), id);
 		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/{id}/match/subject/{subjectId}")
 	public ResponseEntity<Boolean> matchSubject(@PathVariable Long id, @PathVariable Long subjectId) {
-		QuestionPost post = questionPostRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
-		return ResponseEntity.ok(post.getSubject().getId().equals(subjectId));
+		return ResponseEntity.ok(questionService.matchesSubject(id, subjectId));
 	}
 
 	@GetMapping("/{id}/match/professor/{professorId}")
 	public ResponseEntity<Boolean> matchProfessor(@PathVariable Long id, @PathVariable Long professorId) {
-		QuestionPost post = questionPostRepository.findById(id).orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
-		return ResponseEntity.ok(post.getProfessor().getId().equals(professorId));
+		return ResponseEntity.ok(questionService.matchesProfessor(id, professorId));
 	}
 }

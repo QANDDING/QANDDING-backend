@@ -27,7 +27,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
+import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
+import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -107,8 +110,7 @@ public class SecurityConfig {
 			.headers(headers -> headers
 				.contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'"))
 				.frameOptions(frame -> frame.sameOrigin())
-				xssProtection(x -> x.block(true))
-				httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true))
+				.httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true))
 			)
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers("/", "/api/health", "/login", "/error", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
@@ -127,7 +129,7 @@ public class SecurityConfig {
 		return http.build();
 	}
 
-	private OidcUserService oidcUserService() {
+	private OAuth2UserService<OidcUserRequest, OidcUser> oidcUserService() {
 		OidcUserService delegate = new OidcUserService();
 		return userRequest -> {
 			OidcUser oidcUser = delegate.loadUser(userRequest);
@@ -137,7 +139,7 @@ public class SecurityConfig {
 		};
 	}
 
-	private DefaultOAuth2UserService oAuth2UserService() {
+	private OAuth2UserService<OAuth2UserRequest, OAuth2User> oAuth2UserService() {
 		DefaultOAuth2UserService delegate = new DefaultOAuth2UserService();
 		return userRequest -> {
 			OAuth2User user = delegate.loadUser(userRequest);
