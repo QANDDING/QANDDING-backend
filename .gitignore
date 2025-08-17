@@ -44,3 +44,5 @@ docker-compose.override.yml
 
 # Others
 node_modules/
+
+.history
