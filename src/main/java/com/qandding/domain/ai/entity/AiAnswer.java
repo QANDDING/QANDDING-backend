@@ -21,7 +21,7 @@ public class AiAnswer extends BaseTimeEntity {
 	private String title;
 
 	@Lob
-	@Column(nullable = false)
+	@Column(nullable = false, columnDefinition = "LONGTEXT")
 	private String content;
 
 	public AiAnswer(String title, String content) {

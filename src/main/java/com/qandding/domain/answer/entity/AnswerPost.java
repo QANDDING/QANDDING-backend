@@ -29,7 +29,7 @@ public class AnswerPost extends BaseTimeEntity {
 	private QuestionPost questionPost;
 
 	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-	@JoinColumn(name = "ai_answer_id", unique = true)
+	@JoinColumn(name = "ai_answer_id")
 	private AiAnswer aiAnswer;
 
 	@Column(nullable = false, length = 200)

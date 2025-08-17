@@ -35,5 +35,18 @@ public class QuestionDtos {
 		private final String professorName;
 		private final LocalDateTime createdAt;
 		private final List<String> imageUrls;
+
+		// imageUrls가 없는 생성자 추가
+		public Detail(Long id, String title, String content, String authorNickname, 
+					 String subjectName, String professorName, LocalDateTime createdAt) {
+			this.id = id;
+			this.title = title;
+			this.content = content;
+			this.authorNickname = authorNickname;
+			this.subjectName = subjectName;
+			this.professorName = professorName;
+			this.createdAt = createdAt;
+			this.imageUrls = null;
+		}
 	}
 }
