@@ -26,10 +26,7 @@ spring:
         provider:
           google:
             issuer-uri: https://accounts.google.com
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+
 server:
   port: 8080
 
@@ -37,28 +34,12 @@ app:
   oauth:
     allowed-domain: ${APP_OAUTH_ALLOWED_DOMAIN}
     redirect-url: ${APP_OAUTH_REDIRECT_URL}
-  jwt:
-    secret: ${APP_JWT_SECRET}
-    expires-minutes: ${APP_JWT_EXPIRES_MINUTES}
-    cookie:
-      name: ${APP_JWT_COOKIE_NAME}
-      domain: ${APP_JWT_COOKIE_DOMAIN}
-      path: ${APP_JWT_COOKIE_PATH}
-      secure: ${APP_JWT_COOKIE_SECURE}
-      http-only: ${APP_JWT_COOKIE_HTTP_ONLY}
-      same-site: ${APP_JWT_COOKIE_SAME_SITE}
-  refresh-token:
-    ttl-days: ${APP_REFRESH_TTL_DAYS}
-    cookie:
-      name: ${APP_REFRESH_COOKIE_NAME}
-      domain: ${APP_REFRESH_COOKIE_DOMAIN}
-      path: ${APP_REFRESH_COOKIE_PATH}
-      secure: ${APP_REFRESH_COOKIE_SECURE}
-      http-only: ${APP_REFRESH_COOKIE_HTTP_ONLY}
-      same-site: ${APP_REFRESH_COOKIE_SAME_SITE}
+
   s3:
     bucket: ${APP_S3_BUCKET}
     region: ${APP_S3_REGION}
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
     url-expire-seconds: ${APP_S3_URL_EXPIRE_SECONDS}
     upload-prefix: ${APP_S3_UPLOAD_PREFIX}
   cors:
@@ -68,8 +49,7 @@ app:
     exposed-headers: ${APP_CORS_EXPOSED_HEADERS}
     allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS}
     max-age-seconds: ${APP_CORS_MAX_AGE_SECONDS}
-  token-blacklist:
-    enabled: ${APP_TOKEN_BLACKLIST_ENABLED}
+
   ratelimit:
     enabled: ${APP_RATELIMIT_ENABLED}
     requests: ${APP_RATELIMIT_REQUESTS}
@@ -77,6 +57,9 @@ app:
   gemini:
     api-key: ${APP_GEMINI_API_KEY}
     model: ${APP_GEMINI_MODEL}
+  huggingface:
+    api-key: ${HUGGINGFACE_API_KEY}
+    model: Salesforce/blip-image-captioning-large
 
 ---
 spring:
@@ -88,4 +71,14 @@ spring:
 
 logging:
   level:
+    root: INFO
     org.hibernate.SQL: warn
+    com.qandding: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.orm.jpa: DEBUG
+    org.hibernate: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation: TRACE
+    org.springframework.web.servlet.DispatcherServlet: TRACE
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'

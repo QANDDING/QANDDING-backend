@@ -42,6 +42,10 @@ public class User extends BaseTimeEntity {
 		this.emailVerified = false;
 	}
 
+	public Long getId() {
+		return this.id;
+	}
+
 	public void markEmailVerified() {
 		this.emailVerified = true;
 	}

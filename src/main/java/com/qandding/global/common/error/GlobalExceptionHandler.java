@@ -8,17 +8,21 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 	@ExceptionHandler(BusinessException.class)
 	public ResponseEntity<ApiErrorResponse> handleBusiness(BusinessException e) {
+		log.error("BusinessException occurred: {}", e.getMessage(), e);
 		ErrorCode code = e.getErrorCode();
 		return ResponseEntity.status(code.getHttpStatus()).body(ApiErrorResponse.of(code, e.getMessage()));
 	}
 
 	@ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})
 	public ResponseEntity<ApiErrorResponse> handleValidation(Exception e) {
+		log.error("ValidationException occurred: {}", e.getMessage(), e);
 		List<FieldError> fieldErrors = e instanceof MethodArgumentNotValidException manve
 			? manve.getBindingResult().getFieldErrors()
 			: ((BindException) e).getBindingResult().getFieldErrors();
@@ -31,12 +35,14 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(IllegalArgumentException.class)
 	public ResponseEntity<ApiErrorResponse> handleBadRequest(IllegalArgumentException e) {
+		log.error("IllegalArgumentException occurred: {}", e.getMessage(), e);
 		ErrorCode code = ErrorCode.BAD_REQUEST;
 		return ResponseEntity.status(code.getHttpStatus()).body(ApiErrorResponse.of(code, e.getMessage()));
 	}
 
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception e) {
+		log.error("UnexpectedException occurred: {}", e.getMessage(), e);
 		ErrorCode code = ErrorCode.INTERNAL_ERROR;
 		return ResponseEntity.status(code.getHttpStatus()).body(ApiErrorResponse.of(code, code.getDefaultMessage()));
 	}

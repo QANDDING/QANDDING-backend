@@ -14,19 +14,12 @@ services:
       - '3306:3306'
     volumes:
       - db_data:/var/lib/mysql
-    command: ["--default-authentication-plugin=mysql_native_password"]
+    command: ['--default-authentication-plugin=mysql_native_password']
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-proot_pw"]
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'root', '-proot_pw']
       interval: 10s
       timeout: 5s
       retries: 5
-
-  redis:
-    image: redis:7-alpine
-    container_name: qandding-redis
-    restart: unless-stopped
-    ports:
-      - '6379:6379'
 
 volumes:
   db_data:

@@ -3,54 +3,23 @@ package com.qandding.domain.user.controller;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.service.UserService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
-import com.qandding.global.auth.jwt.TokenBlacklistService;
-
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import javax.crypto.SecretKey;
-
+@Slf4j
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 	private final UserService userService;
-	private final TokenBlacklistService tokenBlacklistService;
 
-	@Value("${app.jwt.cookie.name}")
-	private String jwtCookieName;
-	@Value("${app.jwt.expires-minutes}")
-	private long jwtExpiresMinutes;
-	@Value("${app.jwt.cookie.domain}")
-	private String jwtCookieDomain;
-	@Value("${app.jwt.cookie.path}")
-	private String jwtCookiePath;
-	@Value("${app.jwt.cookie.secure}")
-	private boolean jwtCookieSecure;
-	@Value("${app.jwt.cookie.http-only}")
-	private boolean jwtCookieHttpOnly;
-	@Value("${app.jwt.cookie.same-site}")
-	private String jwtCookieSameSite;
-	@Value("${app.jwt.secret}")
-	private String jwtSecret;
-
-	public UserController(UserService userService, TokenBlacklistService tokenBlacklistService) {
+	public UserController(UserService userService) {
 		this.userService = userService;
-		this.tokenBlacklistService = tokenBlacklistService;
 	}
 
 	public record SignUpRequest(
@@ -73,70 +42,77 @@ public class UserController {
 	}
 
 	@GetMapping("/me")
-	public ResponseEntity<User> me(@AuthenticationPrincipal CustomUserPrincipal principal) {
-		return ResponseEntity.ok(userService.get(principal.getUserId()));
+	public ResponseEntity<User> me() {
+		log.info("=== /api/users/me 호출됨 ===");
+		
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		log.info("Authentication 객체 확인됨");
+		
+		if (authentication == null) {
+			log.warn("Authentication이 null입니다.");
+			return ResponseEntity.status(401).build();
+		}
+		
+		if (!authentication.isAuthenticated()) {
+			log.warn("Authentication이 인증되지 않았습니다.");
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		log.info("Principal 객체 타입: {}", principal != null ? principal.getClass().getSimpleName() : "null");
+		
+		if (principal instanceof CustomUserPrincipal customPrincipal) {
+			log.info("CustomUserPrincipal 확인됨. userId: {}", customPrincipal.getUserId());
+			User user = userService.get(customPrincipal.getUserId());
+			log.info("사용자 정보 조회 성공");
+			return ResponseEntity.ok(user);
+		} else {
+			log.warn("Principal이 CustomUserPrincipal이 아닙니다. 실제 타입: {}", 
+				principal != null ? principal.getClass().getName() : "null");
+			return ResponseEntity.status(401).build();
+		}
 	}
 
 	@PatchMapping("/me")
-	public ResponseEntity<User> updateProfile(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                         @Valid @RequestBody UpdateProfileRequest req) {
-		User updated = userService.updateProfile(principal.getUserId(), req.nickname(), req.grade(), req.major());
-		return ResponseEntity.ok(updated);
-	}
-
-	@PostMapping("/logout")
-	public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-		blacklistCurrentToken(request);
-		addExpiredJwtCookie(response);
-		return ResponseEntity.noContent().build();
+	public ResponseEntity<User> updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
+		log.info("=== /api/users/me PATCH 호출됨 ===");
+		
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			log.warn("인증되지 않은 사용자");
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (principal instanceof CustomUserPrincipal customPrincipal) {
+			log.info("프로필 업데이트 요청. userId: {}", customPrincipal.getUserId());
+			User updated = userService.updateProfile(customPrincipal.getUserId(), req.nickname(), req.grade(), req.major());
+			return ResponseEntity.ok(updated);
+		} else {
+			log.warn("Principal 타입 불일치");
+			return ResponseEntity.status(401).build();
+		}
 	}
 
 	@DeleteMapping("/me")
-	public ResponseEntity<Void> withdraw(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                    HttpServletRequest request,
-	                                    HttpServletResponse response) {
-		userService.delete(principal.getUserId());
-		blacklistCurrentToken(request);
-		addExpiredJwtCookie(response);
-		return ResponseEntity.noContent().build();
-	}
-
-	private void blacklistCurrentToken(HttpServletRequest request) {
-		String token = extractJwtToken(request);
-		if (token != null) {
-			try {
-				SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-				Claims claims = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
-				String jti = claims.getId();
-				if (jti != null) {
-					long expiresIn = claims.getExpiration().getTime() - System.currentTimeMillis();
-					if (expiresIn > 0) {
-						tokenBlacklistService.blacklist(jti, expiresIn / 1000);
-					}
-				}
-			} catch (Exception ignored) {
-				// 토큰 파싱 실패 시 무시
-			}
+	public ResponseEntity<Void> withdraw() {
+		log.info("=== /api/users/me DELETE 호출됨 ===");
+		
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			log.warn("인증되지 않은 사용자");
+			return ResponseEntity.status(401).build();
 		}
-	}
-
-	private void addExpiredJwtCookie(HttpServletResponse response) {
-		String expiredCookie = String.format("%s=; Path=%s; Domain=%s; Max-Age=0; %s; SameSite=%s",
-				jwtCookieName, jwtCookiePath, jwtCookieDomain,
-				(jwtCookieSecure ? "Secure; " : "") + (jwtCookieHttpOnly ? "HttpOnly" : ""), jwtCookieSameSite);
-		response.addHeader("Set-Cookie", expiredCookie);
-	}
-
-	private String extractJwtToken(HttpServletRequest request) {
-		String header = request.getHeader("Authorization");
-		if (header != null && header.startsWith("Bearer ")) {
-			return header.substring(7);
+		
+		Object principal = authentication.getPrincipal();
+		if (principal instanceof CustomUserPrincipal customPrincipal) {
+			log.info("회원 탈퇴 요청. userId: {}", customPrincipal.getUserId());
+			userService.delete(customPrincipal.getUserId());
+			// Spring Security가 자동으로 세션 무효화 처리
+			return ResponseEntity.noContent().build();
+		} else {
+			log.warn("Principal 타입 불일치");
+			return ResponseEntity.status(401).build();
 		}
-		Cookie[] cookies = request.getCookies();
-		if (cookies == null) return null;
-		return Arrays.stream(cookies)
-			.filter(c -> jwtCookieName.equals(c.getName()))
-			.map(Cookie::getValue)
-			.findFirst().orElse(null);
 	}
 }
