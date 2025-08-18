@@ -83,9 +83,7 @@ public class CommentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        Comment reply = new Comment(parent.getAnswerPost(), user, content);
-        reply.setParent(parent);
-        reply = commentRepository.save(reply);
+        Comment reply = commentRepository.save(new Comment(parent.getAnswerPost(), user, content, parent));
 
         if (files != null && !files.isEmpty()) {
             int i = 0;
