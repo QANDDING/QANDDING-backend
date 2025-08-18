@@ -1,6 +1,7 @@
 package com.qandding.domain.answer.dto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import com.qandding.domain.answer.entity.UserAnswer;
 
@@ -34,6 +35,7 @@ public class UserAnswerDtos {
 		private final String content;
 		private final String authorNickname;
 		private final LocalDateTime createdAt;
+		private final List<String> imageUrls;
 
 		public static Detail from(UserAnswer answer) {
 			return new Detail(
@@ -41,7 +43,8 @@ public class UserAnswerDtos {
 				answer.getTitle(),
 				answer.getContent(),
 				answer.getUser().getNickname(),
-				answer.getCreatedAt()
+				answer.getCreatedAt(),
+				null
 			);
 		}
 	}

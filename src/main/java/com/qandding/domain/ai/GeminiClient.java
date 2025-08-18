@@ -6,6 +6,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+import java.time.Duration;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Component
 public class GeminiClient {
@@ -25,23 +28,28 @@ public class GeminiClient {
 		Map<String, Object> body = Map.of(
 			"contents", new Object[]{ Map.of("parts", new Object[]{ Map.of("text", prompt) }) }
 		);
-		return webClient
-			.post()
-			.uri("/" + model + ":generateContent")
-			.contentType(MediaType.APPLICATION_JSON)
-			.bodyValue(body)
-			.retrieve()
-			.bodyToMono(Map.class)
-			.map(resp -> {
-				try {
-					var candidates = (java.util.List<?>) resp.get("candidates");
-					if (candidates == null || candidates.isEmpty()) return "";
-					var candidate = (Map<?,?>) candidates.get(0);
-					var content = (Map<?,?>) candidate.get("content");
-					var parts = (java.util.List<?>) content.get("parts");
-					var first = (Map<?,?>) parts.get(0);
-					return String.valueOf(first.get("text"));
-				} catch (Exception e) { return ""; }
-			});
+        return webClient
+            .post()
+            .uri("/" + model + ":generateContent")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(body)
+            .retrieve()
+            .bodyToMono(Map.class)
+            .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                .filter(ex -> ex instanceof WebClientResponseException w && w.getStatusCode().value() == 429)
+                .maxBackoff(Duration.ofSeconds(15))
+                .jitter(0.5)
+            )
+            .map(resp -> {
+                try {
+                    var candidates = (java.util.List<?>) resp.get("candidates");
+                    if (candidates == null || candidates.isEmpty()) return "";
+                    var candidate = (Map<?,?>) candidates.get(0);
+                    var content = (Map<?,?>) candidate.get("content");
+                    var parts = (java.util.List<?>) content.get("parts");
+                    var first = (Map<?,?>) parts.get(0);
+                    return String.valueOf(first.get("text"));
+                } catch (Exception e) { return ""; }
+            });
 	}
 }

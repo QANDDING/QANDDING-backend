@@ -90,6 +90,56 @@ public class S3UploadService {
             throw new RuntimeException("이미지 업로드에 실패했습니다: " + e.getMessage(), e);
         }
     }
+
+    /**
+     * 이미지 또는 PDF 등 일반 파일 업로드 (확장자 검증 포함)
+     */
+    public String uploadFile(MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 파일이 없습니다.");
+        }
+
+        if (accessKeyId == null || accessKeyId.isEmpty() || accessKeyId.equals("your_aws_access_key_here") ||
+            secretAccessKey == null || secretAccessKey.isEmpty() || secretAccessKey.equals("your_aws_secret_key_here")) {
+            log.error("AWS 자격 증명이 설정되지 않았습니다. application.yml에서 app.s3.access-key와 app.s3.secret-key를 설정해주세요.");
+            throw new RuntimeException("AWS 자격 증명이 설정되지 않았습니다. application.yml을 확인해주세요.");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = getFileExtension(originalFilename);
+        if (!isValidFileExtension(extension)) {
+            throw new IllegalArgumentException("지원하지 않는 파일 형식입니다: " + extension);
+        }
+
+        String fileName = generateUniqueFileName(extension);
+        String objectKey = uploadPrefix + fileName;
+
+        log.info("S3에 파일 업로드 시작: bucket={}, key={}, size={}", bucket, objectKey, file.getSize());
+
+        try (S3Client s3Client = S3Client.builder()
+                .region(Region.of(region))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(accessKeyId, secretAccessKey)
+                ))
+                .build()) {
+
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(objectKey)
+                    .contentType(file.getContentType())
+                    .build();
+
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+
+            String url = generateImageUrl(objectKey);
+            log.info("S3 파일 업로드 완료: key={}, url={}", objectKey, url);
+            return url;
+
+        } catch (Exception e) {
+            log.error("S3 파일 업로드 실패: key={}", objectKey, e);
+            throw new RuntimeException("파일 업로드에 실패했습니다: " + e.getMessage(), e);
+        }
+    }
     
     /**
      * 파일 확장자 추출
@@ -106,6 +156,10 @@ public class S3UploadService {
      */
     private boolean isValidImageExtension(String extension) {
         return extension.matches("(jpg|jpeg|png|gif|webp)");
+    }
+
+    private boolean isValidFileExtension(String extension) {
+        return extension.matches("(jpg|jpeg|png|gif|webp|pdf)");
     }
     
     /**

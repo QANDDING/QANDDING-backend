@@ -29,6 +29,9 @@ public class WebCorsConfig {
 		config.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
 		config.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
 		config.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
+		// Ensure CSRF headers are allowed for SPA
+		config.addAllowedHeader("X-XSRF-TOKEN");
+		config.addAllowedHeader("X-CSRF-TOKEN");
 		config.setExposedHeaders(Arrays.asList(exposedHeaders.split(",")));
 		config.setAllowCredentials(allowCredentials);
 		config.setMaxAge(maxAgeSeconds);

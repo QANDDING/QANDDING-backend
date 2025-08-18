@@ -1,6 +1,5 @@
 package com.qandding.domain.comment.entity;
 
-import com.qandding.domain.ai.entity.AiAnswer;
 import com.qandding.domain.answer.entity.AnswerPost;
 import com.qandding.domain.user.entity.User;
 import com.qandding.global.entity.BaseTimeEntity;
@@ -24,28 +23,28 @@ public class Comment extends BaseTimeEntity {
 	@JoinColumn(name = "answer_post_id", nullable = false)
 	private AnswerPost answerPost;
 
-	@ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-	@JoinColumn(name = "ai_answer_id")
-	private AiAnswer aiAnswer;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
 
-	@Column(nullable = false)
-	private String content;
+    @Column(nullable = false)
+    private String content;
 
-	public Comment(AnswerPost answerPost, User user, String content) {
-		this.answerPost = answerPost;
-		this.aiAnswer = null;
-		this.user = user;
-		this.content = content;
-	}
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_comment_id")
+    private Comment parent;
 
-	public Comment(AnswerPost answerPost, AiAnswer aiAnswer, User user, String content) {
-		this.answerPost = answerPost;
-		this.aiAnswer = aiAnswer;
-		this.user = user;
-		this.content = content;
-	}
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.REMOVE)
+    private java.util.List<Comment> replies = new java.util.ArrayList<>();
+
+    public Comment(AnswerPost answerPost, User user, String content) {
+        this.answerPost = answerPost;
+        this.user = user;
+        this.content = content;
+    }
+
+    public void setParent(Comment parent) {
+        this.parent = parent;
+    }
 }

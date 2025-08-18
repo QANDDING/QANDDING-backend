@@ -28,16 +28,16 @@ public class AnswerPost extends BaseTimeEntity {
 	@JoinColumn(name = "question_post_id", nullable = false)
 	private QuestionPost questionPost;
 
-	@OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-	@JoinColumn(name = "ai_answer_id")
-	private AiAnswer aiAnswer;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ai_answer_id")
+    private AiAnswer aiAnswer;
 
 	@Column(nullable = false, length = 200)
 	private String title;
 
-	@Lob
-	@Column(nullable = false)
-	private String content;
+    @Lob
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
+    private String content;
 
 	public AnswerPost(User user, QuestionPost questionPost, AiAnswer aiAnswer, String title, String content) {
 		this.user = user;
@@ -51,6 +51,11 @@ public class AnswerPost extends BaseTimeEntity {
 		this.user = user;
 		this.questionPost = questionPost;
 		this.aiAnswer = null;
+		this.title = title;
+		this.content = content;
+	}
+
+	public void update(String title, String content) {
 		this.title = title;
 		this.content = content;
 	}

@@ -10,15 +10,18 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenApiConfig {
-	@Bean
-	public OpenAPI openAPI() {
-		SecurityScheme cookieAuth = new SecurityScheme()
-			.name("access_token")
-			.type(SecurityScheme.Type.APIKEY)
-			.in(SecurityScheme.In.COOKIE);
-		return new OpenAPI()
-			.info(new Info().title("QANDDING API").version("v1"))
-			.components(new Components().addSecuritySchemes("cookieAuth", cookieAuth))
-			.addSecurityItem(new SecurityRequirement().addList("cookieAuth"));
-	}
+    @Bean
+    public OpenAPI openAPI() {
+        // CSRF 헤더 스키마
+        SecurityScheme xsrf = new SecurityScheme()
+                .name("X-XSRF-TOKEN")
+                .type(SecurityScheme.Type.APIKEY)
+                .in(SecurityScheme.In.HEADER);
+
+        return new OpenAPI()
+                .info(new Info().title("QANDDING API").version("v1"))
+                .components(new Components()
+                        .addSecuritySchemes("xsrf", xsrf))
+                .addSecurityItem(new SecurityRequirement().addList("xsrf")); // 전역 적용
+    }
 }

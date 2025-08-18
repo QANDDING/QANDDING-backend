@@ -58,4 +58,13 @@ public class User extends BaseTimeEntity {
 		this.grade = grade;
 		this.major = major;
 	}
+
+	public void updateProfile(String nickname, String grade, String major, String email) {
+		updateProfile(nickname, grade, major);
+		if (email == null || email.isBlank()) throw new IllegalArgumentException("email");
+		if (!email.equalsIgnoreCase(this.email)) {
+			this.email = email;
+			this.emailVerified = false; // 이메일 변경 시 인증 상태 초기화
+		}
+	}
 }

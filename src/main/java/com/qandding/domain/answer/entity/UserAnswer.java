@@ -30,9 +30,9 @@ public class UserAnswer extends BaseTimeEntity {
 	@Column(nullable = false, length = 200)
 	private String title;
 
-	@Lob
-	@Column(nullable = false)
-	private String content;
+    @Lob
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
+    private String content;
 
 	public UserAnswer(User user, QuestionPost questionPost, String title, String content) {
 		this.user = user;

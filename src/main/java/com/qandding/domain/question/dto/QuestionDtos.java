@@ -49,4 +49,18 @@ public class QuestionDtos {
 			this.imageUrls = null;
 		}
 	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class DetailWithAnswers {
+		private final Long id;
+		private final String title;
+		private final String content;
+		private final String authorNickname;
+		private final String subjectName;
+		private final String professorName;
+		private final LocalDateTime createdAt;
+		private final List<String> imageUrls;
+		private final com.qandding.domain.answer.dto.AnswerDtos.Combined answers;
+	}
 }

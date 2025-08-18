@@ -1,152 +1,105 @@
 package com.qandding.domain.comment.controller;
 
-import com.qandding.global.common.paging.PageResponse;
-import com.qandding.global.common.error.BusinessException;
-import com.qandding.global.common.error.ErrorCode;
-import com.qandding.domain.answer.entity.AnswerPost;
-import com.qandding.domain.answer.repository.AnswerPostRepository;
-import com.qandding.domain.ai.entity.AiAnswer;
-import com.qandding.domain.ai.repository.AiAnswerRepository;
 import com.qandding.domain.comment.dto.CommentDtos;
-import com.qandding.domain.comment.entity.Comment;
-import com.qandding.domain.comment.entity.CommentImage;
-import com.qandding.domain.comment.repository.CommentImageRepository;
 import com.qandding.domain.comment.repository.CommentQueryRepository;
-import com.qandding.domain.comment.repository.CommentRepository;
-import com.qandding.domain.user.entity.User;
-import com.qandding.domain.user.repository.UserRepository;
+import com.qandding.domain.comment.service.CommentService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
-
+import com.qandding.global.common.paging.PageResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+// Pageable imports removed; using explicit page/size params
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
 @RequestMapping("/api/comments")
+@RequiredArgsConstructor
+@Tag(name = "Comment", description = "댓글 관련 API")
 public class CommentController {
-	private final CommentRepository commentRepository;
-	private final CommentImageRepository commentImageRepository;
-	private final CommentQueryRepository commentQueryRepository;
-	private final AnswerPostRepository answerPostRepository;
-	private final AiAnswerRepository aiAnswerRepository;
-	private final UserRepository userRepository;
 
-	public CommentController(CommentRepository commentRepository, CommentImageRepository commentImageRepository,
-	                         CommentQueryRepository commentQueryRepository,
-	                         AnswerPostRepository answerPostRepository, AiAnswerRepository aiAnswerRepository, UserRepository userRepository) {
-		this.commentRepository = commentRepository;
-		this.commentImageRepository = commentImageRepository;
-		this.commentQueryRepository = commentQueryRepository;
-		this.answerPostRepository = answerPostRepository;
-		this.aiAnswerRepository = aiAnswerRepository;
-		this.userRepository = userRepository;
-	}
+    private final CommentService commentService;
+    private final CommentQueryRepository commentQueryRepository;
 
-	public record CreateCommentRequest(
-			Long answerPostId,        // 답변 ID
-			@NotBlank String content, // 댓글 내용
-			Long aiAnswerId,          // AI 답변 ID (선택적, 기존 것 참조)
-			java.util.List<String> imageUrls
-	) {}
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "댓글 생성", description = "텍스트와 파일(이미지/PDF)을 멀티파트로 받아 댓글을 생성합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "생성 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
+    })
+    public ResponseEntity<Long> create(
+            @Parameter(description = "답변 ID") @RequestParam("answerPostId") Long answerPostId,
+            @Parameter(description = "댓글 내용") @RequestParam("content") String content,
+            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files
+    ) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal customPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
 
-	@PostMapping
-	@Transactional
-	public ResponseEntity<Long> create(@RequestBody CreateCommentRequest req) {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			return ResponseEntity.status(401).build();
-		}
-		
-		Object principal = authentication.getPrincipal();
-		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
-			return ResponseEntity.status(401).build();
-		}
-		
-		log.info("Creating comment for answer: {}, user: {}, aiAnswerId: {}", 
-			req.answerPostId(), customPrincipal.getUserId(), req.aiAnswerId());
-		
-		User user = userRepository.findById(customPrincipal.getUserId())
-			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-		
-		AnswerPost answer = answerPostRepository.findById(req.answerPostId())
-			.orElseThrow(() -> new BusinessException(ErrorCode.ANSWER_NOT_FOUND));
-		
-		Comment comment;
-		if (req.aiAnswerId() != null) {
-			// 기존 AI 답변 참조
-			AiAnswer aiAnswer = aiAnswerRepository.findById(req.aiAnswerId())
-				.orElseThrow(() -> new BusinessException(ErrorCode.ANSWER_NOT_FOUND));
-			comment = commentRepository.save(new Comment(answer, aiAnswer, user, req.content()));
-			log.info("Created comment with AI answer reference: {}", comment.getId());
-		} else {
-			// 일반 댓글
-			comment = commentRepository.save(new Comment(answer, user, req.content()));
-			log.info("Created regular comment: {}", comment.getId());
-		}
-		
-		// 이미지 처리
-		if (req.imageUrls() != null && !req.imageUrls().isEmpty()) {
-			log.info("Processing {} images for comment {}", req.imageUrls().size(), comment.getId());
-			int i = 0;
-			for (String url : req.imageUrls()) {
-				commentImageRepository.save(new CommentImage(comment, url, i++));
-			}
-		}
-		
-		return ResponseEntity.ok(comment.getId());
-	}
+        log.info("Creating comment for answer: {}, user: {}", answerPostId, customPrincipal.getUserId());
 
-	@GetMapping
-	public ResponseEntity<PageResponse<CommentDtos.Summary>> list(@RequestParam Long answerPostId,
-	                                                @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
-		log.info("Fetching comments for answer: {}, page: {}, size: {}", 
-			answerPostId, pageable.getPageNumber(), pageable.getPageSize());
-		
-		var page = commentQueryRepository.findSummaries(answerPostId, pageable);
-		log.info("Found {} comments, total: {}", page.getContent().size(), page.getTotalElements());
-		
-		return ResponseEntity.ok(PageResponse.of(page));
-	}
+        Long commentId = commentService.createCommentWithFiles(answerPostId, content, files, customPrincipal.getUserId());
+        return ResponseEntity.ok(commentId);
+    }
 
-	@DeleteMapping("/{id}")
-	@Transactional
-	public ResponseEntity<Void> delete(@PathVariable Long id) {
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			return ResponseEntity.status(401).build();
-		}
-		
-		Object principal = authentication.getPrincipal();
-		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
-			return ResponseEntity.status(401).build();
-		}
-		
-		log.info("Attempting to delete comment with id: {}, user: {}", id, customPrincipal.getUserId());
-		
-		Comment comment = commentRepository.findById(id)
-			.orElseThrow(() -> {
-				log.error("Comment not found with id: {}", id);
-				return new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
-			});
-		
-		log.info("Found comment: id={}, author={}", comment.getId(), comment.getUser().getId());
-		
-		if (!comment.getUser().getId().equals(customPrincipal.getUserId())) {
-			log.error("User {} is not authorized to delete comment {}", customPrincipal.getUserId(), id);
-			throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
-		}
-		
-		commentRepository.delete(comment);
-		log.info("Successfully deleted comment {}", id);
-		
-		return ResponseEntity.noContent().build();
-	}
+    @GetMapping
+    @Operation(summary = "댓글 목록 조회", description = "특정 답변의 댓글(대댓글 포함)을 스레드 형태로 페이징 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "조회 성공")
+    })
+    public ResponseEntity<PageResponse<CommentDtos.Thread>> list(
+            @Parameter(description = "답변 ID") @RequestParam Long answerPostId,
+            @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size) {
+        var threads = commentService.listThreads(answerPostId, page, size);
+        return ResponseEntity.ok(PageResponse.of(threads));
+    }
+
+    @PostMapping(value = "/reply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "대댓글 생성", description = "특정 댓글에 대한 답글을 생성합니다.")
+    public ResponseEntity<Long> reply(
+            @Parameter(description = "부모 댓글 ID") @RequestParam("parentCommentId") Long parentCommentId,
+            @Parameter(description = "답글 내용") @RequestParam("content") String content,
+            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files
+    ) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal customPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+        Long id = commentService.createReplyWithFiles(parentCommentId, content, files, customPrincipal.getUserId());
+        return ResponseEntity.ok(id);
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "댓글 삭제", description = "특정 댓글을 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음")
+    })
+    public ResponseEntity<Void> delete(@Parameter(description = "댓글 ID") @PathVariable Long id) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal customPrincipal)) {
+            return ResponseEntity.status(401).build();
+        }
+
+        log.info("Attempting to delete comment with id: {}, user: {}", id, customPrincipal.getUserId());
+
+        commentService.deleteComment(id, customPrincipal.getUserId());
+
+        return ResponseEntity.noContent().build();
+    }
+
 }
