@@ -35,5 +35,20 @@ public class SchemaAdjuster {
             log.warn("Failed to verify/alter question_post.content to LONGTEXT. Proceeding without change.", e);
         }
     }
-}
 
+    @PostConstruct
+    public void ensureUniqueNicknameIndex() {
+        try {
+            Integer exists = jdbcTemplate.query(
+                    "SELECT COUNT(1) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = SCHEMA() AND TABLE_NAME = 'users' AND INDEX_NAME = 'uk_users_nickname'",
+                    rs -> rs.next() ? rs.getInt(1) : 0
+            );
+            if (exists == null || exists == 0) {
+                log.info("Adding unique index uk_users_nickname on users(nickname)");
+                jdbcTemplate.execute("ALTER TABLE users ADD UNIQUE INDEX uk_users_nickname (nickname)");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to ensure unique index on users.nickname. Proceeding without change.", e);
+        }
+    }
+}

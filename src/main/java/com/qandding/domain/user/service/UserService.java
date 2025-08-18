@@ -14,19 +14,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 	private final UserRepository userRepository;
 
-    // 수동 회원가입 생성 메서드 제거 (OAuth만 사용)
 
 	public User get(Long userId) {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 	}
 
-	@Transactional
-	public User updateProfile(Long userId, String nickname, String grade, String major) {
-		User user = get(userId);
-		user.updateProfile(nickname, grade, major);
-		return user;
-	}
+    @Transactional
+    public User updateProfile(Long userId, String nickname, String grade, String major) {
+        User user = get(userId);
+        if (nickname != null && !nickname.equalsIgnoreCase(user.getNickname())) {
+            userRepository.findByNickname(nickname).ifPresent(existing -> {
+                if (!existing.getId().equals(userId)) {
+                    throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS, "닉네임이 이미 사용 중입니다.");
+                }
+            });
+        }
+        user.updateProfile(nickname, grade, major);
+        return user;
+    }
 
     @Transactional
     public User completeUserProfile(Long userId, String nickname, String grade, String major, String email) {
@@ -41,6 +47,14 @@ public class UserService {
             // 이메일 변경
             user.updateProfile(nickname, grade, major, email);
         } else {
+            // 닉네임 변경 시 중복 체크
+            if (nickname != null && !nickname.equalsIgnoreCase(user.getNickname())) {
+                userRepository.findByNickname(nickname).ifPresent(existing -> {
+                    if (!existing.getId().equals(userId)) {
+                        throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS, "닉네임이 이미 사용 중입니다.");
+                    }
+                });
+            }
             user.updateProfile(nickname, grade, major);
         }
         return user;

@@ -9,7 +9,8 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users", indexes = {
-	@Index(name = "uk_users_email", columnList = "email", unique = true)
+	@Index(name = "uk_users_email", columnList = "email", unique = true),
+	@Index(name = "uk_users_nickname", columnList = "nickname", unique = true)
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
