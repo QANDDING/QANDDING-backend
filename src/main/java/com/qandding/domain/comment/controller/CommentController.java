@@ -23,7 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -58,12 +59,21 @@ public class CommentController {
 
 	@PostMapping
 	@Transactional
-	public ResponseEntity<Long> create(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                  @RequestBody CreateCommentRequest req) {
-		log.info("Creating comment for answer: {}, user: {}, aiAnswerId: {}", 
-			req.answerPostId(), principal.getUserId(), req.aiAnswerId());
+	public ResponseEntity<Long> create(@RequestBody CreateCommentRequest req) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
 		
-		User user = userRepository.findById(principal.getUserId())
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Creating comment for answer: {}, user: {}, aiAnswerId: {}", 
+			req.answerPostId(), customPrincipal.getUserId(), req.aiAnswerId());
+		
+		User user = userRepository.findById(customPrincipal.getUserId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		
 		AnswerPost answer = answerPostRepository.findById(req.answerPostId())
@@ -108,8 +118,18 @@ public class CommentController {
 
 	@DeleteMapping("/{id}")
 	@Transactional
-	public ResponseEntity<Void> delete(@AuthenticationPrincipal CustomUserPrincipal principal, @PathVariable Long id) {
-		log.info("Attempting to delete comment with id: {}, user: {}", id, principal.getUserId());
+	public ResponseEntity<Void> delete(@PathVariable Long id) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Attempting to delete comment with id: {}, user: {}", id, customPrincipal.getUserId());
 		
 		Comment comment = commentRepository.findById(id)
 			.orElseThrow(() -> {
@@ -119,8 +139,8 @@ public class CommentController {
 		
 		log.info("Found comment: id={}, author={}", comment.getId(), comment.getUser().getId());
 		
-		if (!comment.getUser().getId().equals(principal.getUserId())) {
-			log.error("User {} is not authorized to delete comment {}", principal.getUserId(), id);
+		if (!comment.getUser().getId().equals(customPrincipal.getUserId())) {
+			log.error("User {} is not authorized to delete comment {}", customPrincipal.getUserId(), id);
 			throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
 		}
 		

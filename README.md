@@ -90,6 +90,6 @@ app:
 - Spring Security + JWT
 - Spring Data JPA + QueryDSL
 - MySQL
-- Redis
+
 - AWS S3
 - Hugging Face AI API

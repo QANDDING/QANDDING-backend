@@ -3,7 +3,8 @@ package com.qandding.domain.ai.controller;
 import com.qandding.domain.ai.GeminiClient;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,8 +22,17 @@ public class AiController {
 	}
 
 	@PostMapping("/generate")
-	public ResponseEntity<Map<String, String>> generate(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                                   @RequestBody Map<String, String> req) {
+	public ResponseEntity<Map<String, String>> generate(@RequestBody Map<String, String> req) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
 		String prompt = req.getOrDefault("prompt", "");
 		String text = geminiClient.generateText(prompt).blockOptional().orElse("");
 		return ResponseEntity.ok(Map.of("text", text));

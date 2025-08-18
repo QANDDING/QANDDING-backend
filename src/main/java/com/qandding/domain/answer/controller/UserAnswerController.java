@@ -1,27 +1,29 @@
 package com.qandding.domain.answer.controller;
 
-import com.qandding.global.common.paging.PageResponse;
+import com.qandding.domain.answer.dto.AnswerDtos;
 import com.qandding.domain.answer.dto.UserAnswerDtos;
-import com.qandding.domain.answer.entity.UserAnswer;
 import com.qandding.domain.answer.entity.AnswerPost;
-import com.qandding.domain.answer.repository.UserAnswerRepository;
+import com.qandding.domain.answer.entity.UserAnswer;
 import com.qandding.domain.answer.repository.AnswerPostRepository;
+import com.qandding.domain.answer.repository.AnswerQueryRepository;
 import com.qandding.domain.answer.repository.UserAnswerQueryRepository;
+import com.qandding.domain.answer.repository.UserAnswerRepository;
+import com.qandding.domain.question.entity.QuestionPost;
 import com.qandding.domain.question.repository.QuestionPostRepository;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.repository.UserRepository;
+import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.global.common.error.BusinessException;
 import com.qandding.global.common.error.ErrorCode;
-import com.qandding.domain.user.entity.CustomUserPrincipal;
-import com.qandding.domain.answer.repository.AnswerQueryRepository;
-import com.qandding.domain.answer.dto.AnswerDtos;
-
+import com.qandding.global.common.paging.PageResponse;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,39 +32,48 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/user-answers")
 public class UserAnswerController {
 	private final UserAnswerRepository userAnswerRepository;
-	private final AnswerPostRepository answerPostRepository;
 	private final UserAnswerQueryRepository userAnswerQueryRepository;
+	private final AnswerPostRepository answerPostRepository;
+	private final AnswerQueryRepository answerQueryRepository;
 	private final QuestionPostRepository questionPostRepository;
 	private final UserRepository userRepository;
-	private final AnswerQueryRepository answerQueryRepository;
 
 	public UserAnswerController(UserAnswerRepository userAnswerRepository,
-	                           AnswerPostRepository answerPostRepository,
 	                           UserAnswerQueryRepository userAnswerQueryRepository,
+	                           AnswerPostRepository answerPostRepository,
+	                           AnswerQueryRepository answerQueryRepository,
 	                           QuestionPostRepository questionPostRepository,
-	                           UserRepository userRepository,
-	                           AnswerQueryRepository answerQueryRepository) {
+	                           UserRepository userRepository) {
 		this.userAnswerRepository = userAnswerRepository;
-		this.answerPostRepository = answerPostRepository;
 		this.userAnswerQueryRepository = userAnswerQueryRepository;
+		this.answerPostRepository = answerPostRepository;
+		this.answerQueryRepository = answerQueryRepository;
 		this.questionPostRepository = questionPostRepository;
 		this.userRepository = userRepository;
-		this.answerQueryRepository = answerQueryRepository;
 	}
 
 	public record CreateUserAnswerRequest(
-			@NotBlank Long questionPostId,
+			Long questionPostId,
 			@NotBlank String title,
 			@NotBlank String content
 	) {}
 
 	@PostMapping
 	@Transactional
-	public ResponseEntity<Long> create(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                  @RequestBody CreateUserAnswerRequest req) {
-		log.info("Creating user answer for question: {}, user: {}", req.questionPostId(), principal.getUserId());
+	public ResponseEntity<Long> create(@RequestBody CreateUserAnswerRequest req) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
 		
-		User user = userRepository.findById(principal.getUserId())
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Creating user answer for question: {}, user: {}", req.questionPostId(), customPrincipal.getUserId());
+		
+		User user = userRepository.findById(customPrincipal.getUserId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		
 		var question = questionPostRepository.findById(req.questionPostId())
@@ -167,9 +178,18 @@ public class UserAnswerController {
 
 	@DeleteMapping("/{id}")
 	@Transactional
-	public ResponseEntity<Void> delete(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                  @PathVariable Long id) {
-		log.info("Attempting to delete user answer with id: {}, user: {}", id, principal.getUserId());
+	public ResponseEntity<Void> delete(@PathVariable Long id) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Attempting to delete user answer with id: {}, user: {}", id, customPrincipal.getUserId());
 		
 		UserAnswer answer = userAnswerRepository.findById(id)
 			.orElseThrow(() -> {
@@ -180,8 +200,8 @@ public class UserAnswerController {
 		log.info("Found user answer: id={}, title={}, author={}", 
 			answer.getId(), answer.getTitle(), answer.getUser().getId());
 		
-		if (!answer.getUser().getId().equals(principal.getUserId())) {
-			log.error("User {} is not authorized to delete answer {}", principal.getUserId(), id);
+		if (!answer.getUser().getId().equals(customPrincipal.getUserId())) {
+			log.error("User {} is not authorized to delete answer {}", customPrincipal.getUserId(), id);
 			throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
 		}
 		

@@ -1,28 +1,30 @@
 package com.qandding.domain.question.controller;
 
-import com.qandding.global.common.paging.PageResponse;
-import com.qandding.domain.professor.repository.ProfessorRepository;
 import com.qandding.domain.question.dto.QuestionDtos;
 import com.qandding.domain.question.entity.QuestionImage;
 import com.qandding.domain.question.entity.QuestionPost;
 import com.qandding.domain.question.repository.QuestionImageRepository;
 import com.qandding.domain.question.repository.QuestionPostRepository;
 import com.qandding.domain.question.repository.QuestionQueryRepository;
+import com.qandding.domain.subject.entity.Subject;
 import com.qandding.domain.subject.repository.SubjectRepository;
+import com.qandding.domain.professor.entity.Professor;
+import com.qandding.domain.professor.repository.ProfessorRepository;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.repository.UserRepository;
+import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.global.common.error.BusinessException;
 import com.qandding.global.common.error.ErrorCode;
-import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.global.common.paging.PageResponse;
 import com.qandding.global.storage.S3UploadService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +32,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,29 +46,29 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestController
 @RequestMapping("/api/questions")
-@Tag(name = "질문", description = "질문 생성 및 관리 API")
+@Tag(name = "Question", description = "질문 관련 API")
 public class QuestionController {
 	private final QuestionPostRepository questionPostRepository;
-	private final QuestionQueryRepository questionQueryRepository;
 	private final QuestionImageRepository questionImageRepository;
-	private final UserRepository userRepository;
+	private final QuestionQueryRepository questionQueryRepository;
 	private final SubjectRepository subjectRepository;
 	private final ProfessorRepository professorRepository;
+	private final UserRepository userRepository;
 	private final S3UploadService s3UploadService;
 
 	public QuestionController(QuestionPostRepository questionPostRepository,
-	                          QuestionQueryRepository questionQueryRepository,
-	                          QuestionImageRepository questionImageRepository,
-	                          UserRepository userRepository,
-	                          SubjectRepository subjectRepository,
-	                          ProfessorRepository professorRepository,
-	                          S3UploadService s3UploadService) {
+	                         QuestionImageRepository questionImageRepository,
+	                         QuestionQueryRepository questionQueryRepository,
+	                         SubjectRepository subjectRepository,
+	                         ProfessorRepository professorRepository,
+	                         UserRepository userRepository,
+	                         S3UploadService s3UploadService) {
 		this.questionPostRepository = questionPostRepository;
-		this.questionQueryRepository = questionQueryRepository;
 		this.questionImageRepository = questionImageRepository;
-		this.userRepository = userRepository;
+		this.questionQueryRepository = questionQueryRepository;
 		this.subjectRepository = subjectRepository;
 		this.professorRepository = professorRepository;
+		this.userRepository = userRepository;
 		this.s3UploadService = s3UploadService;
 	}
 
@@ -74,28 +77,30 @@ public class QuestionController {
 			@NotBlank String content,
 			Long subjectId,
 			Long professorId,
-			List<String> imageUrls
-	) {}
-
-	public record CreateQuestionWithImagesRequest(
-			@NotBlank String title,
-			@NotBlank String content,
-			@NotBlank Long subjectId,
-			@NotBlank Long professorId
+			java.util.List<String> imageUrls
 	) {}
 
 	@PostMapping
 	@Transactional
-	@Operation(summary = "질문 생성", description = "기본 질문을 생성합니다.")
+	@Operation(summary = "질문 생성", description = "새로운 질문을 생성합니다.")
 	@ApiResponses(value = {
 		@ApiResponse(responseCode = "200", description = "질문 생성 성공"),
 		@ApiResponse(responseCode = "400", description = "잘못된 요청"),
 		@ApiResponse(responseCode = "401", description = "인증 필요"),
 		@ApiResponse(responseCode = "404", description = "과목 또는 교수를 찾을 수 없음")
 	})
-	public ResponseEntity<Long> create(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                  @RequestBody CreateQuestionRequest req) {
-		User user = userRepository.findById(principal.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+	public ResponseEntity<Long> create(@RequestBody CreateQuestionRequest req) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		User user = userRepository.findById(customPrincipal.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		var subject = subjectRepository.findById(req.subjectId()).orElseThrow(() -> new BusinessException(ErrorCode.SUBJECT_NOT_FOUND));
 		var professor = professorRepository.findById(req.professorId()).orElseThrow(() -> new BusinessException(ErrorCode.PROFESSOR_NOT_FOUND));
 		QuestionPost post = questionPostRepository.save(new QuestionPost(user, professor, subject, req.title(), req.content()));
@@ -118,7 +123,7 @@ public class QuestionController {
 		@ApiResponse(responseCode = "404", description = "과목 또는 교수를 찾을 수 없음"),
 		@ApiResponse(responseCode = "500", description = "이미지 업로드 실패")
 	})
-	public ResponseEntity<Long> createWithImages(@AuthenticationPrincipal CustomUserPrincipal principal,
+	public ResponseEntity<Long> createWithImages(
 	                                           @Parameter(description = "질문 제목", required = true) @RequestParam("title") String title,
 	                                           @Parameter(description = "질문 내용", required = true) @RequestParam("content") String content,
 	                                           @Parameter(description = "과목 ID", required = true) @RequestParam("subjectId") Long subjectId,
@@ -128,7 +133,17 @@ public class QuestionController {
 	                                           @RequestParam(value = "images", required = false) List<MultipartFile> images) {
 		log.info("Creating question with images: title={}, images count={}", title, images != null ? images.size() : 0);
 		
-		User user = userRepository.findById(principal.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		User user = userRepository.findById(customPrincipal.getUserId()).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		var subject = subjectRepository.findById(subjectId).orElseThrow(() -> new BusinessException(ErrorCode.SUBJECT_NOT_FOUND));
 		var professor = professorRepository.findById(professorId).orElseThrow(() -> new BusinessException(ErrorCode.PROFESSOR_NOT_FOUND));
 		
@@ -222,9 +237,18 @@ public class QuestionController {
 
 	@DeleteMapping("/{id}")
 	@Transactional
-	public ResponseEntity<Void> delete(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                  @PathVariable Long id) {
-		log.info("Attempting to delete question with id: {}, user: {}", id, principal.getUserId());
+	public ResponseEntity<Void> delete(@PathVariable Long id) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Attempting to delete question with id: {}, user: {}", id, customPrincipal.getUserId());
 		
 		QuestionPost q = questionPostRepository.findById(id)
 			.orElseThrow(() -> {
@@ -234,8 +258,8 @@ public class QuestionController {
 		
 		log.info("Found question: id={}, title={}, author={}", q.getId(), q.getTitle(), q.getUser().getId());
 		
-		if (!q.getUser().getId().equals(principal.getUserId())) {
-			log.error("User {} is not authorized to delete question {}", principal.getUserId(), id);
+		if (!q.getUser().getId().equals(customPrincipal.getUserId())) {
+			log.error("User {} is not authorized to delete question {}", customPrincipal.getUserId(), id);
 			throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
 		}
 		

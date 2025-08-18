@@ -31,7 +31,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.SortDefault;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -87,12 +88,21 @@ public class AiAnswerController {
 
 	@PostMapping
 	@Transactional
-	public ResponseEntity<Long> create(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                  @RequestBody CreateAiAnswerRequest req) {
-		log.info("Creating AI answer for question: {}, user: {}", req.questionPostId(), principal.getUserId());
+	public ResponseEntity<Long> create(@RequestBody CreateAiAnswerRequest req) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Creating AI answer for question: {}, user: {}", req.questionPostId(), customPrincipal.getUserId());
 		
 		// 사용자 정보 조회
-		User user = userRepository.findById(principal.getUserId())
+		User user = userRepository.findById(customPrincipal.getUserId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		
 		// 질문 존재 여부 확인
@@ -121,12 +131,21 @@ public class AiAnswerController {
 
 	@PostMapping("/generate-and-save")
 	@Transactional
-	public ResponseEntity<AiAnswerDtos.Detail> generateAndSave(@AuthenticationPrincipal CustomUserPrincipal principal,
-	                                                          @RequestBody GenerateAndSaveAiAnswerRequest req) {
-		log.info("Generating and saving AI answer for question: {}, user: {}", req.questionPostId(), principal.getUserId());
+	public ResponseEntity<AiAnswerDtos.Detail> generateAndSave(@RequestBody GenerateAndSaveAiAnswerRequest req) {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Generating and saving AI answer for question: {}, user: {}", req.questionPostId(), customPrincipal.getUserId());
 		
 		// 사용자 정보 조회
-		User user = userRepository.findById(principal.getUserId())
+		User user = userRepository.findById(customPrincipal.getUserId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		
 		// 질문 존재 여부 확인
@@ -204,7 +223,6 @@ public class AiAnswerController {
 		@ApiResponse(responseCode = "500", description = "서버 오류")
 	})
 	public ResponseEntity<AiAnswerDtos.Detail> generateAndSaveWithImage(
-			@AuthenticationPrincipal CustomUserPrincipal principal,
 			@Parameter(description = "질문 ID", required = true) @RequestParam("questionPostId") Long questionPostId,
 			@Parameter(description = "AI에게 보낼 프롬프트", required = true) @RequestParam("prompt") String prompt,
 			@Parameter(description = "답변 제목 (선택사항)") @RequestParam(value = "title", required = false) String title,
@@ -212,10 +230,20 @@ public class AiAnswerController {
 				content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE)) 
 			@RequestParam(value = "image", required = false) MultipartFile image) {
 		
-		log.info("Generating and saving AI answer with image for question: {}, user: {}", questionPostId, principal.getUserId());
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		if (authentication == null || !authentication.isAuthenticated()) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		Object principal = authentication.getPrincipal();
+		if (!(principal instanceof CustomUserPrincipal customPrincipal)) {
+			return ResponseEntity.status(401).build();
+		}
+		
+		log.info("Generating and saving AI answer with image for question: {}, user: {}", questionPostId, customPrincipal.getUserId());
 		
 		// 사용자 정보 조회
-		User user = userRepository.findById(principal.getUserId())
+		User user = userRepository.findById(customPrincipal.getUserId())
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 		
 		// 질문 존재 여부 확인
