@@ -88,7 +88,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 customPrincipal, null, customPrincipal.getAuthorities()
                             );
                         SecurityContextHolder.getContext().setAuthentication(authentication);
-                        logger.debug("OAuth2 세션에서 CustomUserPrincipal 복원 - userId: {}", customPrincipal.getUserId());
+                        logger.debug("OAuth2 세션에서 CustomUserPrincipal 복원 - userId: " + customPrincipal.getUserId());
                     } else {
                         logger.debug("OAuth2 인증된 세션 확인됨 - JWT 토큰 발급 필요");
                         // OAuth2 인증은 되어 있지만 JWT 토큰이 없는 경우
