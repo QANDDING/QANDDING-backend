@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import java.util.Objects;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -27,15 +28,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
 	private final ConcurrentHashMap<String, AtomicLong> memoryCounters = new ConcurrentHashMap<>();
 	private final ConcurrentHashMap<String, Long> memoryTimestamps = new ConcurrentHashMap<>();
 
-	public RateLimitFilter(
-			@Value("${app.ratelimit.enabled:true}") boolean enabled,
-			@Value("${app.ratelimit.requests:100}") long requests,
-			@Value("${app.ratelimit.seconds:60}") long seconds
-	) {
-		this.enabled = enabled;
-		this.requests = requests;
-		this.seconds = seconds;
-	}
+  public RateLimitFilter(
+      @Value("${app.ratelimit.enabled:true}") boolean enabled,
+      @Value("${app.ratelimit.requests:100}") long requests,
+      @Value("${app.ratelimit.seconds:60}") long seconds
+  ) {
+    this.enabled = enabled;
+    this.requests = requests;
+    this.seconds = seconds;
+    if (enabled && (requests <= 0 || seconds <= 0)) {
+      throw new IllegalArgumentException("Rate limit 설정값이 올바르지 않습니다.");
+    }
+  }
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
