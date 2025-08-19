@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AnswerSelectionRepository extends JpaRepository<AnswerSelection, Long> {
 	Optional<AnswerSelection> findByQuestionPost(QuestionPost questionPost);
+
+    // Convenience method to avoid loading QuestionPost entity
+    Optional<AnswerSelection> findByQuestionPost_Id(Long questionPostId);
 }

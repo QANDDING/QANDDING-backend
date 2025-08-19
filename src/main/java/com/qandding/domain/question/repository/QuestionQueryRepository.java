@@ -1,5 +1,6 @@
 package com.qandding.domain.question.repository;
 
+import static com.qandding.domain.answer.entity.QAnswerSelection.answerSelection;
 import static com.qandding.domain.professor.entity.QProfessor.professor;
 import static com.qandding.domain.question.entity.QQuestionPost.questionPost;
 import static com.qandding.domain.subject.entity.QSubject.subject;
@@ -7,6 +8,7 @@ import static com.qandding.domain.user.entity.QUser.user;
 
 import com.qandding.domain.question.dto.QuestionDtos;
 import com.querydsl.core.types.Projections;
+import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -39,7 +41,8 @@ public class QuestionQueryRepository {
 				user.nickname,
 				subject.name,
 				professor.name,
-				questionPost.createdAt
+				questionPost.createdAt,
+				JPAExpressions.selectOne().from(answerSelection).where(answerSelection.questionPost.eq(questionPost)).exists()
 			))
 			.from(questionPost)
 			.leftJoin(questionPost.user, user)

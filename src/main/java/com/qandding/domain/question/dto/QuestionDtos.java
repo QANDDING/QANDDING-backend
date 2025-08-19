@@ -11,16 +11,17 @@ import lombok.Getter;
 public class QuestionDtos {
 	@Getter
 	@AllArgsConstructor
-	public static class Summary {
+		public static class Summary {
 		private final Long id;
 		private final String title;
 		private final String authorNickname;
 		private final String subjectName;
 		private final String professorName;
 		private final LocalDateTime createdAt;
+		private final boolean hasAdoptedAnswer;
 
-		public static Summary from(QuestionPost q) {
-			return new Summary(q.getId(), q.getTitle(), q.getUser().getNickname(), q.getSubject().getName(), q.getProfessor().getName(), q.getCreatedAt());
+		public static Summary from(QuestionPost q, boolean hasAdoptedAnswer) {
+			return new Summary(q.getId(), q.getTitle(), q.getUser().getNickname(), q.getSubject().getName(), q.getProfessor().getName(), q.getCreatedAt(), hasAdoptedAnswer);
 		}
 	}
 
@@ -50,17 +51,5 @@ public class QuestionDtos {
 		}
 	}
 
-	@Getter
-	@AllArgsConstructor
-	public static class DetailWithAnswers {
-		private final Long id;
-		private final String title;
-		private final String content;
-		private final String authorNickname;
-		private final String subjectName;
-		private final String professorName;
-		private final LocalDateTime createdAt;
-		private final List<String> imageUrls;
-		private final com.qandding.domain.answer.dto.AnswerDtos.Combined answers;
-	}
+    
 }

@@ -29,9 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -150,44 +148,7 @@ public class QuestionService {
                 q.getProfessor().getName(), q.getCreatedAt(), images);
     }
 
-    public QuestionDtos.DetailWithAnswers getQuestionDetailWithAnswers(Long questionId, int page, int size) {
-        QuestionPost q = questionPostRepository.findById(questionId).orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
-        List<String> qImages = questionImageRepository
-                .findByQuestionPostIdOrderBySortOrderAsc(questionId)
-                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).collect(Collectors.toList());
-
-        // 가장 최신 AI 답변을 우선 선택
-        AnswerPost aiPost = answerPostRepository.findTopByQuestionPost_IdAndAiAnswerIsNotNullOrderByCreatedAtDesc(questionId);
-        AnswerDtos.Detail aiDetail = null;
-        if (aiPost != null) {
-            List<String> imgs = answerImageRepository.findByAnswerPostIdOrderBySortOrderAsc(aiPost.getId())
-                    .stream().map(ai -> s3PresignService.presignGetUrlByUrl(ai.getUrl())).toList();
-            aiDetail = new AnswerDtos.Detail(aiPost.getId(), aiPost.getTitle(), aiPost.getContent(),
-                    aiPost.getUser().getNickname(), aiPost.getCreatedAt(), imgs, true);
-        }
-
-        PageRequest p = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        var userPage = answerPostRepository.findByQuestionPost_IdAndAiAnswerIsNull(questionId, p);
-        List<Long> ids = userPage.getContent().stream().map(AnswerPost::getId).toList();
-        Map<Long, List<String>> imgMap = new HashMap<>();
-        if (!ids.isEmpty()) {
-            var imgs = answerImageRepository.findByAnswerPostIdInOrderBySortOrderAsc(ids);
-            for (var ai : imgs) {
-                imgMap.computeIfAbsent(ai.getAnswerPost().getId(), k -> new ArrayList<>()).add(s3PresignService.presignGetUrlByUrl(ai.getUrl()));
-            }
-        }
-        var userDetails = userPage.getContent().stream().map(pst -> new AnswerDtos.Detail(
-                pst.getId(), pst.getTitle(), pst.getContent(), pst.getUser().getNickname(), pst.getCreatedAt(),
-                imgMap.getOrDefault(pst.getId(), List.of()), false
-        )).collect(Collectors.toList());
-        var detailPage = new org.springframework.data.domain.PageImpl<>(userDetails, p, userPage.getTotalElements());
-        var combined = new AnswerDtos.Combined(aiDetail, com.qandding.global.common.paging.PageResponse.of(detailPage));
-
-        return new QuestionDtos.DetailWithAnswers(
-                q.getId(), q.getTitle(), q.getContent(), q.getUser().getNickname(), q.getSubject().getName(), q.getProfessor().getName(),
-                q.getCreatedAt(), qImages, combined
-        );
-    }
+    // getQuestionDetailWithAnswers removed: use Answer Feed API instead
 
     public List<String> getQuestionImages(Long questionId) {
         return questionImageRepository.findByQuestionPostIdOrderBySortOrderAsc(questionId)

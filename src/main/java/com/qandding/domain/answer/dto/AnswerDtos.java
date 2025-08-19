@@ -44,6 +44,7 @@ public class AnswerDtos {
         private final LocalDateTime createdAt;
         private final List<String> imageUrls;
         private final boolean ai;
+        private final boolean isAdopted;
     }
 
     @Getter

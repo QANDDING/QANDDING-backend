@@ -15,6 +15,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import com.qandding.global.common.error.ApiErrorResponse;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -66,6 +68,20 @@ public class QuestionController {
 
     @GetMapping
     @Operation(summary = "질문 목록 조회", description = "조건에 맞는 질문 목록을 페이징하여 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "성공적으로 질문 목록을 조회했습니다.",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = QuestionDtos.Summary.class),
+                            examples = @ExampleObject(value = "{\"content\": [{\"id\": 1, \"title\": \"질문 제목1\", \"authorNickname\": \"작성자1\", \"subjectName\": \"과목1\", \"professorName\": \"교수1\", \"createdAt\": \"2025-08-19T12:00:00\", \"hasAdoptedAnswer\": true}], \"pageable\": {\"pageNumber\": 0, \"pageSize\": 10, \"sort\": {\"empty\": false, \"sorted\": true, \"unsorted\": false}, \"offset\": 0, \"paged\": true, \"unpaged\": false}, \"last\": false, \"totalPages\": 1, \"totalElements\": 1, \"size\": 10, \"number\": 0, \"sort\": {\"empty\": false, \"sorted\": true, \"unsorted\": false}, \"first\": true, \"numberOfElements\": 1, \"empty\": false}"))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiErrorResponse.class),
+                            examples = @ExampleObject(value = "{\"code\": \"BAD_REQUEST\", \"message\": \"잘못된 요청입니다.\", \"timestamp\": \"2025-08-19T10:00:00.000+00:00\", \"errors\": []}"))),
+            @ApiResponse(responseCode = "500", description = "서버 오류",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiErrorResponse.class),
+                            examples = @ExampleObject(value = "{\"code\": \"INTERNAL_SERVER_ERROR\", \"message\": \"서버 내부 오류가 발생했습니다.\", \"timestamp\": \"2025-08-19T10:00:00.000+00:00\", \"errors\": []}")))
+    })
     public ResponseEntity<PageResponse<QuestionDtos.Summary>> list(
             @Parameter(description = "과목 ID (선택)") @RequestParam(required = false) Long subjectId,
             @Parameter(description = "교수 ID (선택)") @RequestParam(required = false) Long professorId,
