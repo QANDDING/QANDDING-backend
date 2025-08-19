@@ -190,13 +190,10 @@ public class SecurityConfig {
       // Spring Security 컨텍스트에 새로운 인증 정보 설정
       SecurityContextHolder.getContext().setAuthentication(newAuthentication);
 
-      // 세션에는 최소한의 정보만 저장 (OAuth2 상태 유지용)
-      request.getSession().setAttribute(
-          "OAUTH2_AUTHENTICATED", true
-      );
-      request.getSession().setAttribute(
-          "USER_ID", user.getId()
-      );
+      // 세션에 사용자 정보 저장 (JWT 토큰과 동기화)
+      request.getSession().setAttribute("OAUTH2_AUTHENTICATED", true);
+      request.getSession().setAttribute("USER_ID", user.getId());
+      request.getSession().setAttribute("CUSTOM_USER_PRINCIPAL", customUserPrincipal);
 
       System.out.println("SecurityContext 및 세션 설정 완료");
 

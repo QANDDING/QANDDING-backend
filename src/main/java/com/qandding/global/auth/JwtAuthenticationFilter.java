@@ -78,11 +78,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             } else {
                 // JWT가 없거나 유효하지 않은 경우, OAuth2 세션 확인
-                if (request.getSession(false) != null && 
-                    request.getSession().getAttribute("OAUTH2_AUTHENTICATED") != null) {
-                    logger.debug("OAuth2 인증된 세션 확인됨 - JWT 토큰 발급 필요");
-                    // OAuth2 인증은 되어 있지만 JWT 토큰이 없는 경우
-                    // 프론트엔드에서 JWT 토큰을 요청하도록 안내
+                HttpSession session = request.getSession(false);
+                if (session != null && session.getAttribute("OAUTH2_AUTHENTICATED") != null) {
+                    // OAuth2 인증된 세션이 있으면 CustomUserPrincipal 복원
+                    CustomUserPrincipal customPrincipal = (CustomUserPrincipal) session.getAttribute("CUSTOM_USER_PRINCIPAL");
+                    if (customPrincipal != null) {
+                        UsernamePasswordAuthenticationToken authentication = 
+                            new UsernamePasswordAuthenticationToken(
+                                customPrincipal, null, customPrincipal.getAuthorities()
+                            );
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        logger.debug("OAuth2 세션에서 CustomUserPrincipal 복원 - userId: {}", customPrincipal.getUserId());
+                    } else {
+                        logger.debug("OAuth2 인증된 세션 확인됨 - JWT 토큰 발급 필요");
+                        // OAuth2 인증은 되어 있지만 JWT 토큰이 없는 경우
+                        // 프론트엔드에서 JWT 토큰을 요청하도록 안내
+                    }
                 } else {
                     if (StringUtils.hasText(jwt)) {
                         logger.debug("JWT 토큰이 유효하지 않음: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
