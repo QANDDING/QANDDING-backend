@@ -8,13 +8,21 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
 public class HealthController {
-	@GetMapping("/health")
-	public ResponseEntity<Map<String, Object>> health() {
-		return ResponseEntity.ok(Map.of(
-			"status", "OK",
-			"service", "qandding-backend"
-		));
-	}
+    
+    @GetMapping("/")
+    public ResponseEntity<String> root() {
+        return ResponseEntity.ok("Qandding Backend is running!");
+    }
+    
+    @RequestMapping("/api")
+    public class ApiController {
+        @GetMapping("/health")
+        public ResponseEntity<Map<String, Object>> health() {
+            return ResponseEntity.ok(Map.of(
+                "status", "OK",
+                "service", "qandding-backend"
+            ));
+        }
+    }
 }
