@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<TokenResponse> refreshToken(
             @RequestBody RefreshTokenRequest request,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
         try {
             String newAccessToken = tokenService.refreshAccessToken(request.refreshToken());
@@ -34,9 +36,19 @@ public class AuthController {
             // 새로운 Access Token을 httpOnly 쿠키로 설정 (하위 호환성)
             Cookie accessCookie = new Cookie("access_token", newAccessToken);
             accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(true);
+            
+            // HTTPS 환경 자동 감지 및 쿠키 보안 설정
+            boolean isSecure = httpRequest.isSecure();
+            accessCookie.setSecure(isSecure);
             accessCookie.setPath("/");
             accessCookie.setMaxAge(900); // 15분
+            
+            // HTTPS 환경에서 SameSite 설정
+            if (isSecure) {
+                accessCookie.setAttribute("SameSite", "None");
+            } else {
+                accessCookie.setAttribute("SameSite", "Lax");
+            }
             response.addCookie(accessCookie);
             
             // 새로운 Access Token을 응답 본문에도 포함 (프론트엔드에서 Authorization 헤더 사용 시)
@@ -50,6 +62,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
         try {
             // 사용자가 인증되지 않은 경우에도 쿠키만 만료 처리
@@ -64,9 +77,19 @@ public class AuthController {
             // Access Token 쿠키 만료 처리
             Cookie accessCookie = new Cookie("access_token", "");
             accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(true);
+            
+            // HTTPS 환경 자동 감지 및 쿠키 보안 설정
+            boolean isSecure = httpRequest.isSecure();
+            accessCookie.setSecure(isSecure);
             accessCookie.setPath("/");
             accessCookie.setMaxAge(0); // 즉시 만료
+            
+            // HTTPS 환경에서 SameSite 설정
+            if (isSecure) {
+                accessCookie.setAttribute("SameSite", "None");
+            } else {
+                accessCookie.setAttribute("SameSite", "Lax");
+            }
             response.addCookie(accessCookie);
             
         } catch (Exception e) {

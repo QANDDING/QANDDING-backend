@@ -48,6 +48,9 @@ public class SecurityConfig {
 
     @Value("${app.jwt.cookie-secure:false}")
     private boolean cookieSecure;
+    
+    @Value("${server.ssl.enabled:true}")
+    private boolean sslEnabled;
 
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
@@ -206,9 +209,21 @@ public class SecurityConfig {
             // Access Token을 httpOnly 쿠키로 설정
             Cookie accessCookie = new Cookie("access_token", tokenPair.getAccessToken());
             accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(cookieSecure); // 환경에 따라 설정
+            
+            // HTTPS 환경 자동 감지 및 쿠키 보안 설정
+            boolean isSecure = cookieSecure || sslEnabled || request.isSecure();
+            accessCookie.setSecure(isSecure);
             accessCookie.setPath("/");
             accessCookie.setMaxAge(900); // 15분 (초 단위)
+            
+            // HTTPS 환경에서 SameSite 설정
+            if (isSecure) {
+                // SameSite=None은 Secure가 true일 때만 사용 가능
+                accessCookie.setAttribute("SameSite", "None");
+            } else {
+                // 개발 환경에서는 SameSite=Lax
+                accessCookie.setAttribute("SameSite", "Lax");
+            }
             
             // 도메인 설정 (개발/프로덕션 환경에 따라)
             if (StringUtils.hasText(cookieDomain)) {
