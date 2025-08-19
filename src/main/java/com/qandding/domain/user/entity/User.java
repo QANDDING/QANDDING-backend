@@ -1,5 +1,6 @@
 package com.qandding.domain.user.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.qandding.global.entity.BaseTimeEntity;
 
 import jakarta.persistence.*;
@@ -37,6 +38,7 @@ public class User extends BaseTimeEntity {
 	@Column(name = "email_verified", nullable = false)
 	private boolean emailVerified;
 
+	@JsonIgnore
 	@OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<UserToken> userTokens = new ArrayList<>();
 

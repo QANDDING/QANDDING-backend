@@ -54,6 +54,27 @@ public class UserController {
             @NotBlank @Email String email
     ) {}
 
+    // User 응답용 DTO
+    public record UserResponse(
+            Long id,
+            String nickname,
+            String grade,
+            String major,
+            String email,
+            boolean emailVerified
+    ) {
+        public static UserResponse from(User user) {
+            return new UserResponse(
+                user.getId(),
+                user.getNickname(),
+                user.getGrade(),
+                user.getMajor(),
+                user.getEmail(),
+                user.isEmailVerified()
+            );
+        }
+    }
+
     // POST /api/users 회원가입은 제거
 
 	@GetMapping("/me")
@@ -63,7 +84,7 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-	public ResponseEntity<User> me(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+	public ResponseEntity<UserResponse> me(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
 		// JWT 토큰 검증 (Spring Security가 자동으로 처리)
 		if (customPrincipal == null) {
 			log.error("인증되지 않은 사용자의 정보 조회 요청");
@@ -76,7 +97,7 @@ public class UserController {
 		try {
 			User user = userService.get(customPrincipal.getUserId());
 			log.info("사용자 정보 조회 성공");
-			return ResponseEntity.ok(user);
+			return ResponseEntity.ok(UserResponse.from(user));
 		} catch (BusinessException e) {
 			throw e;
 		} catch (Exception e) {
@@ -93,7 +114,7 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-	public ResponseEntity<User> updateProfile(
+	public ResponseEntity<UserResponse> updateProfile(
 			@Valid @RequestBody UpdateProfileRequest req,
 			@AuthenticationPrincipal CustomUserPrincipal customPrincipal
 	) {
@@ -109,7 +130,7 @@ public class UserController {
 		try {
 			User updated = userService.updateProfile(customPrincipal.getUserId(), req.nickname(), req.grade(), req.major());
 			log.info("프로필 업데이트 완료 - userId: {}", customPrincipal.getUserId());
-			return ResponseEntity.ok(updated);
+			return ResponseEntity.ok(UserResponse.from(updated));
 		} catch (BusinessException e) {
 			throw e;
 		} catch (Exception e) {
@@ -126,7 +147,7 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-    public ResponseEntity<User> completeProfile(
+    public ResponseEntity<UserResponse> completeProfile(
 			@Valid @RequestBody CompleteProfileRequest req,
 			@AuthenticationPrincipal CustomUserPrincipal customPrincipal
 	) {
@@ -142,7 +163,7 @@ public class UserController {
 		try {
 			User updated = userService.completeUserProfile(customPrincipal.getUserId(), req.nickname(), req.grade(), req.major(), req.email());
 			log.info("프로필 완성 완료 - userId: {}", customPrincipal.getUserId());
-			return ResponseEntity.ok(updated);
+			return ResponseEntity.ok(UserResponse.from(updated));
 		} catch (BusinessException e) {
 			throw e;
 		} catch (Exception e) {
