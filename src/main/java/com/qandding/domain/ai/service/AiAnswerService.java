@@ -20,6 +20,9 @@ import com.qandding.global.storage.S3UploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -177,5 +180,15 @@ public class AiAnswerService {
         AiAnswer aiAnswer = aiAnswerRepository.save(new AiAnswer(finalTitle, aiResponse));
         answerPostRepository.save(new AnswerPost(user, questionPost, aiAnswer, finalTitle, aiResponse));
         return new AiAnswerDtos.Detail(aiAnswer.getId(), finalTitle, aiResponse, aiAnswer.getCreatedAt(), java.util.List.of());
+    }
+
+    public Page<AiAnswerDtos.Summary> listAiAnswers(Long questionPostId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<AiAnswer> aiAnswers = aiAnswerRepository.findByQuestionPostId(questionPostId, pageable);
+        return aiAnswers.map(aiAnswer -> new AiAnswerDtos.Summary(
+            aiAnswer.getId(),
+            aiAnswer.getTitle(),
+            aiAnswer.getCreatedAt()
+        ));
     }
 }

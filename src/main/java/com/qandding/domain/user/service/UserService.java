@@ -1,5 +1,6 @@
 package com.qandding.domain.user.service;
 
+import com.qandding.domain.user.dto.UserDtos;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.repository.UserRepository;
 import com.qandding.global.common.error.BusinessException;
@@ -19,6 +20,23 @@ public class UserService {
 		return userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 	}
+
+    public UserDtos.Response getUserResponse(Long userId) {
+        User user = get(userId);
+        return UserDtos.Response.from(user);
+    }
+
+    @Transactional
+    public UserDtos.Response updateProfile(Long userId, UserDtos.UpdateProfileRequest request) {
+        User user = updateProfile(userId, request.getNickname(), request.getGrade(), request.getMajor());
+        return UserDtos.Response.from(user);
+    }
+
+    @Transactional
+    public UserDtos.Response completeUserProfile(Long userId, UserDtos.CompleteProfileRequest request) {
+        User user = completeUserProfile(userId, request.getNickname(), request.getGrade(), request.getMajor(), null);
+        return UserDtos.Response.from(user);
+    }
 
     @Transactional
     public User updateProfile(Long userId, String nickname, String grade, String major) {
