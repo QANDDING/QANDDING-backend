@@ -62,7 +62,6 @@ app:
     secret: ${APP_JWT_SECRET}
     access-expiration: ${APP_JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${APP_JWT_REFRESH_EXPIRATION}
-    cookie-domain: ${APP_JWT_COOKIE_DOMAIN}
     cookie-secure: ${APP_JWT_COOKIE_SECURE}
 ---
 spring:
