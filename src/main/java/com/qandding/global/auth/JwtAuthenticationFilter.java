@@ -72,13 +72,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         );
                     
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    logger.debug("JWT 인증 성공 - userId: {}, email: {}", userId, email);
+                    logger.debug("JWT 인증 성공 - userId: " + userId + ", email: " + email);
                 } else {
-                    logger.warn("JWT 토큰은 유효하지만 사용자 정보를 찾을 수 없음 - userId: {}, email: {}", userId, email);
+                    logger.warn("JWT 토큰은 유효하지만 사용자 정보를 찾을 수 없음 - userId: " + userId + ", email: " + email);
                 }
             } else {
                 if (StringUtils.hasText(jwt)) {
-                    logger.debug("JWT 토큰이 유효하지 않음: {}", jwt.substring(0, Math.min(20, jwt.length())) + "...");
+                    logger.debug("JWT 토큰이 유효하지 않음: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
                 }
             }
         } catch (Exception e) {

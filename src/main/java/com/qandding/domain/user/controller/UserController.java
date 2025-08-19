@@ -8,11 +8,14 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.service.UserService;
+import com.qandding.domain.user.service.UserPostService;
+import com.qandding.domain.user.dto.UserPostDtos;
 import com.qandding.global.common.error.BusinessException;
 import com.qandding.global.common.error.ErrorCode;
 
@@ -33,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 @Tag(name = "User", description = "사용자 관련 API")
 public class UserController {
 	private final UserService userService;
+	private final UserPostService userPostService;
 
     // 회원가입 POST는 사용하지 않음 (OAuth만 사용)
 
@@ -174,6 +178,47 @@ public class UserController {
 		} catch (Exception e) {
 			log.error("회원 탈퇴 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
 			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "회원 탈퇴 중 오류가 발생했습니다.");
+		}
+	}
+
+	@GetMapping("/posts")
+	@Operation(summary = "내가 쓴 글 보기", description = "현재 로그인된 사용자가 작성한 질문글과 답변글을 페이징하여 조회합니다.")
+	@ApiResponses(value = {
+		@ApiResponse(responseCode = "200", description = "조회 성공"),
+		@ApiResponse(responseCode = "400", description = "잘못된 요청 (페이지 번호가 음수인 경우)"),
+		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음"),
+		@ApiResponse(responseCode = "500", description = "서버 내부 오류")
+	})
+	public ResponseEntity<UserPostDtos.UserPostsResponse> getMyPosts(
+			@RequestParam(defaultValue = "0") int page,
+			@AuthenticationPrincipal CustomUserPrincipal customPrincipal
+	) {
+		// JWT 토큰 검증 (Spring Security가 자동으로 처리)
+		if (customPrincipal == null) {
+			log.error("인증되지 않은 사용자의 글 조회 요청");
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+		
+		// 페이지 번호 검증
+		if (page < 0) {
+			log.error("잘못된 페이지 번호 요청 - page: {}", page);
+			throw new BusinessException(ErrorCode.BAD_REQUEST, "페이지 번호는 0 이상이어야 합니다.");
+		}
+		
+		log.info("=== /api/users/posts 호출됨 ===");
+		log.info("내가 쓴 글 조회 요청. userId: {}, page: {}", customPrincipal.getUserId(), page);
+		
+		try {
+			UserPostDtos.UserPostsResponse response = userPostService.getUserPosts(customPrincipal.getUserId(), page, 10);
+			log.info("내가 쓴 글 조회 완료 - userId: {}, 질문글: {}개, 답변글: {}개", 
+					customPrincipal.getUserId(), response.getQuestions().size(), response.getAnswers().size());
+			return ResponseEntity.ok(response);
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("내가 쓴 글 조회 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "내가 쓴 글 조회 중 오류가 발생했습니다.");
 		}
 	}
 }
