@@ -23,6 +23,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.util.StringUtils;
 
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.domain.user.entity.User;
@@ -45,6 +46,12 @@ public class SecurityConfig {
 
     @Value("${app.oauth.redirect-url}")
     private String redirectUrl;
+
+    @Value("${app.jwt.cookie-domain:}")
+    private String cookieDomain;
+
+    @Value("${app.jwt.cookie-secure:false}")
+    private boolean cookieSecure;
 
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
@@ -204,9 +211,15 @@ public class SecurityConfig {
             // Access Token을 httpOnly 쿠키로 설정
             Cookie accessCookie = new Cookie("access_token", tokenPair.getAccessToken());
             accessCookie.setHttpOnly(true);
-            accessCookie.setSecure(true); // HTTPS에서만 전송
+            accessCookie.setSecure(cookieSecure); // 환경에 따라 설정
             accessCookie.setPath("/");
             accessCookie.setMaxAge(900); // 15분 (초 단위)
+            
+            // 도메인 설정 (개발/프로덕션 환경에 따라)
+            if (StringUtils.hasText(cookieDomain)) {
+                accessCookie.setDomain(cookieDomain);
+            }
+            
             response.addCookie(accessCookie);
             
             // Refresh Token은 URL 파라미터로 전달 (localStorage 저장용)

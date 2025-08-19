@@ -3,6 +3,13 @@ app:
     allowed-domain: example.com
     redirect-url: http://localhost:3000/after-login
 
+  jwt:
+    secret: test-secret-key-2024
+    access-expiration: 900000
+    refresh-expiration: 604800000
+    cookie-domain: localhost
+    cookie-secure: false
+
   s3:
     bucket: dummy-bucket
     region: ap-northeast-2

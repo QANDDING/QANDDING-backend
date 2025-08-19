@@ -37,6 +37,10 @@ APP_JWT_SECRET=your_super_secret_jwt_key_2024
 # 토큰 만료 시간 (밀리초)
 APP_JWT_ACCESS_EXPIRATION=900000    # 15분
 APP_JWT_REFRESH_EXPIRATION=604800000 # 7일
+
+# JWT 쿠키 설정
+APP_JWT_COOKIE_DOMAIN=your_domain.com  # 쿠키 도메인 (빈 값이면 현재 도메인)
+APP_JWT_COOKIE_SECURE=true              # HTTPS 환경에서만 true, 개발환경은 false
 ```
 
 ### **4. CORS 설정**
@@ -80,6 +84,8 @@ REDIS_PASSWORD=
 APP_JWT_SECRET=dev_jwt_secret_key_2024
 APP_JWT_ACCESS_EXPIRATION=900000
 APP_JWT_REFRESH_EXPIRATION=604800000
+APP_JWT_COOKIE_DOMAIN=localhost
+APP_JWT_COOKIE_SECURE=false
 
 # CORS
 APP_CORS_ALLOWED_ORIGINS=http://localhost:3000
