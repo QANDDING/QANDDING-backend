@@ -58,7 +58,10 @@ app:
   gemini:
     api-key: ${APP_GEMINI_API_KEY}
     model: ${APP_GEMINI_MODEL}
-
+  jwt:
+    secret: ${APP_JWT_SECRET}
+    access-expiration: ${APP_JWT_ACCESS_EXPIRATION}
+    refresh-expiration: ${APP_JWT_REFRESH_EXPIRATION}
 ---
 spring:
   config:

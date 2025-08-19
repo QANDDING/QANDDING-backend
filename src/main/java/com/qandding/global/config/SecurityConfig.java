@@ -1,17 +1,11 @@
 package com.qandding.global.config;
 
-import com.qandding.global.ratelimit.RateLimitFilter;
-import com.qandding.domain.user.entity.User;
-import com.qandding.domain.user.entity.CustomUserPrincipal;
-import com.qandding.domain.user.repository.UserRepository;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -30,8 +24,15 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.domain.user.entity.User;
+import com.qandding.domain.user.repository.UserRepository;
+import com.qandding.global.auth.JwtAuthenticationFilter;
+import com.qandding.global.auth.JwtTokenProvider;
+import com.qandding.global.auth.TokenService;
+import com.qandding.global.ratelimit.RateLimitFilter;
 
+import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -48,6 +49,9 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
     private final RateLimitFilter rateLimitFilter;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final TokenService tokenService;
 
     @Bean
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -66,7 +70,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/api/health", "/login", "/error", "/swagger-ui/**",
-                                "/v3/api-docs/**", "/favicon.ico").permitAll()
+                                "/v3/api-docs/**", "/favicon.ico", "/api/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth -> oauth
@@ -77,7 +81,8 @@ public class SecurityConfig {
                         .successHandler(oauth2SuccessHandler())
                 )
                 .logout(Customizer.withDefaults())
-                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -193,19 +198,23 @@ public class SecurityConfig {
 
             System.out.println("SecurityContext 설정 완료");
 
-            // 프론트엔드로 자동 리다이렉트
-            String frontendUrl = redirectUrl;
+            // JWT 토큰 쌍 생성 (Access Token + Refresh Token)
+            TokenService.TokenPair tokenPair = tokenService.generateTokenPair(user);
             
-            if (needsProfile) {
-                frontendUrl += "/profile-setup";
-            } else {
-                frontendUrl += "/dashboard";
-            }
+            // Access Token을 httpOnly 쿠키로 설정
+            Cookie accessCookie = new Cookie("access_token", tokenPair.getAccessToken());
+            accessCookie.setHttpOnly(true);
+            accessCookie.setSecure(true); // HTTPS에서만 전송
+            accessCookie.setPath("/");
+            accessCookie.setMaxAge(900); // 15분 (초 단위)
+            response.addCookie(accessCookie);
             
-            // 성공 정보를 URL 파라미터로 전달
-            frontendUrl += "?success=true&needsProfile=" + needsProfile;
+            // Refresh Token은 URL 파라미터로 전달 (localStorage 저장용)
+            String frontendUrl = redirectUrl + 
+                "?success=true&needsProfile=" + needsProfile + 
+                "&refreshToken=" + tokenPair.getRefreshToken();
             
-            // 자동 리다이렉트 (사용자가 에러 페이지를 보지 않음)
+            // 자동 리다이렉트
             response.sendRedirect(frontendUrl);
 
             System.out.println("=== OAuth2 로그인 성공 핸들러 완료 ===");

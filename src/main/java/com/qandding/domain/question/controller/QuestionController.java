@@ -25,8 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -59,11 +58,27 @@ public class QuestionController {
             @Parameter(description = "교수 ID", required = true, schema = @Schema(type = "integer", format = "int64")) @RequestParam("professorId") Long professorId,
             @Parameter(name = "files", description = "첨부 파일 목록(이미지/PDF)",
                     content = @Content(array = @ArraySchema(schema = @Schema(type = "string", format = "binary"))))
-            @RequestPart(value = "files", required = false) List<MultipartFile> files
+            @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) throws IOException {
-        CustomUserPrincipal customPrincipal = getCustomUserPrincipal();
-        Long questionId = questionService.createQuestionWithFiles(title, content, subjectId, professorId, files, customPrincipal.getUserId());
-        return ResponseEntity.ok(questionId);
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 질문 생성 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        log.info("질문 생성 요청 - userId: {}, title: {}", customPrincipal.getUserId(), title);
+        
+        try {
+            Long questionId = questionService.createQuestionWithFiles(title, content, subjectId, professorId, files, customPrincipal.getUserId());
+            log.info("질문 생성 완료 - questionId: {}, userId: {}", questionId, customPrincipal.getUserId());
+            return ResponseEntity.ok(questionId);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("질문 생성 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "질문 생성 중 오류가 발생했습니다.");
+        }
     }
 
     @GetMapping
@@ -112,17 +127,27 @@ public class QuestionController {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
     })
-    public ResponseEntity<Void> delete(@Parameter(description = "질문 ID") @PathVariable Long id) {
-        CustomUserPrincipal customPrincipal = getCustomUserPrincipal();
-        questionService.deleteQuestion(id, customPrincipal.getUserId());
-        return ResponseEntity.noContent().build();
-    }
-
-    private CustomUserPrincipal getCustomUserPrincipal() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal)) {
+    public ResponseEntity<Void> delete(
+            @Parameter(description = "질문 ID") @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
+    ) {
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 질문 삭제 요청");
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        return (CustomUserPrincipal) authentication.getPrincipal();
+        
+        log.info("질문 삭제 요청 - questionId: {}, userId: {}", id, customPrincipal.getUserId());
+        
+        try {
+            questionService.deleteQuestion(id, customPrincipal.getUserId());
+            log.info("질문 삭제 완료 - questionId: {}, userId: {}", id, customPrincipal.getUserId());
+            return ResponseEntity.noContent().build();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("질문 삭제 중 오류 발생 - questionId: {}, userId: {}", id, customPrincipal.getUserId(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "질문 삭제 중 오류가 발생했습니다.");
+        }
     }
 }

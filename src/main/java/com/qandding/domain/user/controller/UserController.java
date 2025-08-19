@@ -1,10 +1,22 @@
 package com.qandding.domain.user.controller;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.service.UserService;
-import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.global.common.error.BusinessException;
+import com.qandding.global.common.error.ErrorCode;
+
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,10 +25,6 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -30,7 +38,8 @@ public class UserController {
 
 	public record UpdateProfileRequest(
 			@NotBlank String nickname,
-			@NotBlank String grade,	
+			@NotBlank String grade,
+	
 			@NotBlank String major
 	) {}
 
@@ -50,34 +59,25 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-	public ResponseEntity<User> me() {
+	public ResponseEntity<User> me(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+		// JWT 토큰 검증 (Spring Security가 자동으로 처리)
+		if (customPrincipal == null) {
+			log.error("인증되지 않은 사용자의 정보 조회 요청");
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
+		}
+		
 		log.info("=== /api/users/me 호출됨 ===");
+		log.info("CustomUserPrincipal 확인됨. userId: {}", customPrincipal.getUserId());
 		
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		log.info("Authentication 객체 확인됨");
-		
-		if (authentication == null) {
-			log.warn("Authentication이 null입니다.");
-			return ResponseEntity.status(401).build();
-		}
-		
-		if (!authentication.isAuthenticated()) {
-			log.warn("Authentication이 인증되지 않았습니다.");
-			return ResponseEntity.status(401).build();
-		}
-		
-		Object principal = authentication.getPrincipal();
-		log.info("Principal 객체 타입: {}", principal != null ? principal.getClass().getSimpleName() : "null");
-		
-		if (principal instanceof CustomUserPrincipal customPrincipal) {
-			log.info("CustomUserPrincipal 확인됨. userId: {}", customPrincipal.getUserId());
+		try {
 			User user = userService.get(customPrincipal.getUserId());
 			log.info("사용자 정보 조회 성공");
 			return ResponseEntity.ok(user);
-		} else {
-			log.warn("Principal이 CustomUserPrincipal이 아닙니다. 실제 타입: {}", 
-				principal != null ? principal.getClass().getName() : "null");
-			return ResponseEntity.status(401).build();
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("사용자 정보 조회 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "사용자 정보 조회 중 오류가 발생했습니다.");
 		}
 	}
 
@@ -89,23 +89,28 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-	public ResponseEntity<User> updateProfile(@Valid @RequestBody UpdateProfileRequest req) {
-		log.info("=== /api/users/me PATCH 호출됨 ===");
-		
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			log.warn("인증되지 않은 사용자");
-			return ResponseEntity.status(401).build();
+	public ResponseEntity<User> updateProfile(
+			@Valid @RequestBody UpdateProfileRequest req,
+			@AuthenticationPrincipal CustomUserPrincipal customPrincipal
+	) {
+		// JWT 토큰 검증 (Spring Security가 자동으로 처리)
+		if (customPrincipal == null) {
+			log.error("인증되지 않은 사용자의 프로필 업데이트 요청");
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 		
-		Object principal = authentication.getPrincipal();
-		if (principal instanceof CustomUserPrincipal customPrincipal) {
-			log.info("프로필 업데이트 요청. userId: {}", customPrincipal.getUserId());
+		log.info("=== /api/users/me PATCH 호출됨 ===");
+		log.info("프로필 업데이트 요청. userId: {}", customPrincipal.getUserId());
+		
+		try {
 			User updated = userService.updateProfile(customPrincipal.getUserId(), req.nickname(), req.grade(), req.major());
+			log.info("프로필 업데이트 완료 - userId: {}", customPrincipal.getUserId());
 			return ResponseEntity.ok(updated);
-		} else {
-			log.warn("Principal 타입 불일치");
-			return ResponseEntity.status(401).build();
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("프로필 업데이트 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "프로필 업데이트 중 오류가 발생했습니다.");
 		}
 	}
 
@@ -117,23 +122,28 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-    public ResponseEntity<User> completeProfile(@Valid @RequestBody CompleteProfileRequest req) {
-		log.info("=== /api/users/complete-profile PUT 호출됨 ===");
-		
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			log.warn("인증되지 않은 사용자");
-			return ResponseEntity.status(401).build();
+    public ResponseEntity<User> completeProfile(
+			@Valid @RequestBody CompleteProfileRequest req,
+			@AuthenticationPrincipal CustomUserPrincipal customPrincipal
+	) {
+		// JWT 토큰 검증 (Spring Security가 자동으로 처리)
+		if (customPrincipal == null) {
+			log.error("인증되지 않은 사용자의 프로필 완성 요청");
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 		
-		Object principal = authentication.getPrincipal();
-		if (principal instanceof CustomUserPrincipal customPrincipal) {
-			log.info("프로필 완성 요청. userId: {}", customPrincipal.getUserId());
-            User updated = userService.completeUserProfile(customPrincipal.getUserId(), req.nickname(), req.grade(), req.major(), req.email());
-            return ResponseEntity.ok(updated);
-		} else {
-			log.warn("Principal 타입 불일치");
-			return ResponseEntity.status(401).build();
+		log.info("=== /api/users/complete-profile PUT 호출됨 ===");
+		log.info("프로필 완성 요청. userId: {}", customPrincipal.getUserId());
+		
+		try {
+			User updated = userService.completeUserProfile(customPrincipal.getUserId(), req.nickname(), req.grade(), req.major(), req.email());
+			log.info("프로필 완성 완료 - userId: {}", customPrincipal.getUserId());
+			return ResponseEntity.ok(updated);
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("프로필 완성 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "프로필 완성 중 오류가 발생했습니다.");
 		}
 	}
 
@@ -144,24 +154,26 @@ public class UserController {
 		@ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
 		@ApiResponse(responseCode = "404", description = "사용자를 찾을 수 없음")
 	})
-	public ResponseEntity<Void> withdraw() {
-		log.info("=== /api/users/me DELETE 호출됨 ===");
-		
-		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		if (authentication == null || !authentication.isAuthenticated()) {
-			log.warn("인증되지 않은 사용자");
-			return ResponseEntity.status(401).build();
+	public ResponseEntity<Void> withdraw(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+		// JWT 토큰 검증 (Spring Security가 자동으로 처리)
+		if (customPrincipal == null) {
+			log.error("인증되지 않은 사용자의 회원 탈퇴 요청");
+			throw new BusinessException(ErrorCode.UNAUTHORIZED);
 		}
 		
-		Object principal = authentication.getPrincipal();
-		if (principal instanceof CustomUserPrincipal customPrincipal) {
-			log.info("회원 탈퇴 요청. userId: {}", customPrincipal.getUserId());
+		log.info("=== /api/users/me DELETE 호출됨 ===");
+		log.info("회원 탈퇴 요청. userId: {}", customPrincipal.getUserId());
+		
+		try {
 			userService.delete(customPrincipal.getUserId());
+			log.info("회원 탈퇴 완료 - userId: {}", customPrincipal.getUserId());
 			// Spring Security가 자동으로 세션 무효화 처리
 			return ResponseEntity.noContent().build();
-		} else {
-			log.warn("Principal 타입 불일치");
-			return ResponseEntity.status(401).build();
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			log.error("회원 탈퇴 중 오류 발생 - userId: {}", customPrincipal.getUserId(), e);
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "회원 탈퇴 중 오류가 발생했습니다.");
 		}
 	}
 }

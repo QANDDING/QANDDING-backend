@@ -1,31 +1,39 @@
 package com.qandding.domain.answer.controller;
 
-import com.qandding.domain.answer.dto.UserAnswerDtos;
-import com.qandding.domain.answer.repository.UserAnswerQueryRepository;
-import com.qandding.domain.answer.service.UserAnswerService;
-import com.qandding.domain.user.entity.CustomUserPrincipal;
-import com.qandding.global.common.paging.PageResponse;
-import com.qandding.global.storage.S3PresignService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotBlank;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import com.qandding.domain.answer.dto.UserAnswerDtos;
+import com.qandding.domain.answer.repository.UserAnswerQueryRepository;
+import com.qandding.domain.answer.service.UserAnswerService;
+import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.global.common.error.BusinessException;
+import com.qandding.global.common.error.ErrorCode;
+import com.qandding.global.common.paging.PageResponse;
+import com.qandding.global.storage.S3PresignService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
@@ -49,11 +57,28 @@ public class UserAnswerController {
             @Parameter(description = "질문 ID") @RequestParam("questionPostId") Long questionPostId,
             @Parameter(description = "답변 제목") @RequestParam("title") String title,
             @Parameter(description = "답변 내용") @RequestParam("content") String content,
-            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) List<MultipartFile> files
+            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        CustomUserPrincipal customPrincipal = getCustomUserPrincipal();
-        Long userAnswerId = userAnswerService.createUserAnswerWithFiles(questionPostId, title, content, files, customPrincipal.getUserId());
-        return ResponseEntity.ok(userAnswerId);
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 답변 생성 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        log.info("사용자 답변 생성 요청 - userId: {}, questionPostId: {}, title: {}", 
+                customPrincipal.getUserId(), questionPostId, title);
+        
+        try {
+            Long userAnswerId = userAnswerService.createUserAnswerWithFiles(questionPostId, title, content, files, customPrincipal.getUserId());
+            log.info("사용자 답변 생성 완료 - answerId: {}, userId: {}", userAnswerId, customPrincipal.getUserId());
+            return ResponseEntity.ok(userAnswerId);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 답변 생성 중 오류 발생 - userId: {}, questionPostId: {}", customPrincipal.getUserId(), questionPostId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "사용자 답변 생성 중 오류가 발생했습니다.");
+        }
     }
 
     @GetMapping
@@ -111,17 +136,27 @@ public class UserAnswerController {
             @ApiResponse(responseCode = "403", description = "권한 없음"),
             @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
-    public ResponseEntity<Void> delete(@Parameter(description = "답변 ID") @PathVariable Long id) {
-        CustomUserPrincipal customPrincipal = getCustomUserPrincipal();
-        userAnswerService.deleteUserAnswer(id, customPrincipal.getUserId());
-        return ResponseEntity.noContent().build();
-    }
-
-    private CustomUserPrincipal getCustomUserPrincipal() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal)) {
-            throw new com.qandding.global.common.error.BusinessException(com.qandding.global.common.error.ErrorCode.UNAUTHORIZED);
+    public ResponseEntity<Void> delete(
+            @Parameter(description = "답변 ID") @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
+    ) {
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 답변 삭제 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        return (CustomUserPrincipal) authentication.getPrincipal();
+        
+        log.info("사용자 답변 삭제 요청 - answerId: {}, userId: {}", id, customPrincipal.getUserId());
+        
+        try {
+            userAnswerService.deleteUserAnswer(id, customPrincipal.getUserId());
+            log.info("사용자 답변 삭제 완료 - answerId: {}, userId: {}", id, customPrincipal.getUserId());
+            return ResponseEntity.noContent().build();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("사용자 답변 삭제 중 오류 발생 - answerId: {}, userId: {}", id, customPrincipal.getUserId(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "사용자 답변 삭제 중 오류가 발생했습니다.");
+        }
     }
 }

@@ -2,7 +2,7 @@ package com.qandding.domain.answer.entity;
 
 import com.qandding.domain.question.entity.QuestionPost;
 import com.qandding.domain.user.entity.User;
-import com.qandding.global.common.entity.BaseTimeEntity;
+import com.qandding.global.entity.BaseTimeEntity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;

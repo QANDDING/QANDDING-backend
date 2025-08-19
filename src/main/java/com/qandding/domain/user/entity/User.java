@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "users", indexes = {
@@ -34,6 +36,9 @@ public class User extends BaseTimeEntity {
 
 	@Column(name = "email_verified", nullable = false)
 	private boolean emailVerified;
+
+	@OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<UserToken> userTokens = new ArrayList<>();
 
 	public User(String nickname, String grade, String major, String email) {
 		this.nickname = nickname;

@@ -1,28 +1,37 @@
 package com.qandding.domain.comment.controller;
 
+// Pageable imports removed; using explicit page/size params
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.qandding.domain.comment.dto.CommentDtos;
 import com.qandding.domain.comment.repository.CommentQueryRepository;
 import com.qandding.domain.comment.service.CommentService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.global.common.error.ApiErrorResponse;
+import com.qandding.global.common.error.BusinessException;
+import com.qandding.global.common.error.ErrorCode;
 import com.qandding.global.common.paging.PageResponse;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import com.qandding.global.common.error.ApiErrorResponse;
-import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-// Pageable imports removed; using explicit page/size params
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -61,17 +70,27 @@ public class CommentController {
     public ResponseEntity<Long> create(
             @Parameter(description = "답변 ID") @RequestParam("answerPostId") Long answerPostId,
             @Parameter(description = "댓글 내용") @RequestParam("content") String content,
-            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files
+            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal customPrincipal)) {
-            return ResponseEntity.status(401).build();
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 댓글 생성 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-
+        
         log.info("Creating comment for answer: {}, user: {}", answerPostId, customPrincipal.getUserId());
 
-        Long commentId = commentService.createCommentWithFiles(answerPostId, content, files, customPrincipal.getUserId());
-        return ResponseEntity.ok(commentId);
+        try {
+            Long commentId = commentService.createCommentWithFiles(answerPostId, content, files, customPrincipal.getUserId());
+            log.info("댓글 생성 완료 - commentId: {}, userId: {}", commentId, customPrincipal.getUserId());
+            return ResponseEntity.ok(commentId);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("댓글 생성 중 오류 발생 - userId: {}, answerPostId: {}", customPrincipal.getUserId(), answerPostId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "댓글 생성 중 오류가 발생했습니다.");
+        }
     }
 
     @GetMapping
@@ -170,14 +189,25 @@ public class CommentController {
     public ResponseEntity<Long> reply(
             @Parameter(description = "부모 댓글 ID") @RequestParam("parentCommentId") Long parentCommentId,
             @Parameter(description = "답글 내용") @RequestParam("content") String content,
-            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files
+            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) java.util.List<org.springframework.web.multipart.MultipartFile> files,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal customPrincipal)) {
-            return ResponseEntity.status(401).build();
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 대댓글 생성 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        Long id = commentService.createReplyWithFiles(parentCommentId, content, files, customPrincipal.getUserId());
-        return ResponseEntity.ok(id);
+        
+        try {
+            Long id = commentService.createReplyWithFiles(parentCommentId, content, files, customPrincipal.getUserId());
+            log.info("대댓글 생성 완료 - commentId: {}, userId: {}", id, customPrincipal.getUserId());
+            return ResponseEntity.ok(id);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("대댓글 생성 중 오류 발생 - userId: {}, parentCommentId: {}", customPrincipal.getUserId(), parentCommentId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "대댓글 생성 중 오류가 발생했습니다.");
+        }
     }
 
     @DeleteMapping("/{id}")
@@ -201,17 +231,26 @@ public class CommentController {
                             schema = @Schema(implementation = ApiErrorResponse.class),
                             examples = @ExampleObject(value = "{\"code\": \"INTERNAL_SERVER_ERROR\", \"message\": \"Internal server error.\", \"timestamp\": \"2025-08-19T10:00:00.000+00:00\", \"errors\": []}")))
     })
-    public ResponseEntity<Void> delete(@Parameter(description = "댓글 ID") @PathVariable Long id) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserPrincipal customPrincipal)) {
-            return ResponseEntity.status(401).build();
+    public ResponseEntity<Void> delete(@Parameter(description = "댓글 ID") @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 댓글 삭제 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-
+        
         log.info("Attempting to delete comment with id: {}, user: {}", id, customPrincipal.getUserId());
 
-        commentService.deleteComment(id, customPrincipal.getUserId());
-
-        return ResponseEntity.noContent().build();
+        try {
+            commentService.deleteComment(id, customPrincipal.getUserId());
+            log.info("댓글 삭제 완료 - commentId: {}, userId: {}", id, customPrincipal.getUserId());
+            return ResponseEntity.noContent().build();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("댓글 삭제 중 오류 발생 - commentId: {}, userId: {}", id, customPrincipal.getUserId(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "댓글 삭제 중 오류가 발생했습니다.");
+        }
     }
 
 }

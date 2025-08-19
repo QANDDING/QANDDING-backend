@@ -21,5 +21,28 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis 서비스 제거 - 토큰을 DB에서 관리
+
+  app:
+    build: .
+    container_name: qandding-app
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/qandding
+      - DB_USERNAME=qandding
+      - DB_PASSWORD=qandding_pw
+      # Redis 환경변수 제거 - 토큰을 DB에서 관리
+      - APP_JWT_SECRET=docker_jwt_secret_key_2024
+      - APP_JWT_ACCESS_EXPIRATION=900000
+      - APP_JWT_REFRESH_EXPIRATION=604800000
+    depends_on:
+      mysql:
+        condition: service_healthy
+      # Redis 의존성 제거 - 토큰을 DB에서 관리
+
 volumes:
   db_data:
+  # Redis 볼륨 제거 - 토큰을 DB에서 관리
