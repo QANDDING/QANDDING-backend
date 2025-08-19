@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
@@ -76,7 +77,7 @@ public class AiAnswerService {
         AiAnswer aiAnswer = aiAnswerRepository.save(new AiAnswer(finalTitle, aiResponse));
         AnswerPost answerPost = answerPostRepository.save(new AnswerPost(user, questionPost, aiAnswer, finalTitle, aiResponse));
         // 이미지 링크는 저장/반환하지 않습니다(사람이 올린 이미지가 아님)
-        return new AiAnswerDtos.Detail(aiAnswer.getId(), aiAnswer.getTitle(), aiResponse, aiAnswer.getCreatedAt(), List.of());
+        return new AiAnswerDtos.Detail(aiAnswer.getId(), aiAnswer.getTitle(), aiResponse, aiAnswer.getCreatedAt(), java.util.List.of());
     }
 
     @Transactional
@@ -130,7 +131,7 @@ public class AiAnswerService {
         AnswerPost answerPost = answerPostRepository.save(new AnswerPost(user, questionPost, aiAnswer, finalTitle, aiResponse));
 
         // 이미지 링크는 저장/반환하지 않습니다(사람이 올린 이미지가 아님)
-        return new AiAnswerDtos.Detail(aiAnswer.getId(), aiAnswer.getTitle(), aiResponse, aiAnswer.getCreatedAt(), List.of());
+        return new AiAnswerDtos.Detail(aiAnswer.getId(), aiAnswer.getTitle(), aiResponse, aiAnswer.getCreatedAt(), java.util.List.of());
     }
 
     @Transactional

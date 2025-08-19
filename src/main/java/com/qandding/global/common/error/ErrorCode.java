@@ -17,7 +17,8 @@ public enum ErrorCode {
 	RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "요청 한도를 초과했습니다."),
 	BAD_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
-    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "내용이 비어있습니다." );
+    INVALID_INPUT_VALUE(HttpStatus.BAD_REQUEST, "내용이 비어있습니다." ),
+    ANSWER_NOT_SELECTABLE(HttpStatus.BAD_REQUEST, "채택할 수 없는 답변입니다.");
 
 	private final HttpStatus httpStatus;
 	private final String defaultMessage;

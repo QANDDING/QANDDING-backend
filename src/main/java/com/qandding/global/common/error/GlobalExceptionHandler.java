@@ -28,7 +28,7 @@ public class GlobalExceptionHandler {
 			: ((BindException) e).getBindingResult().getFieldErrors();
 		List<ValidationErrorDetail> details = fieldErrors.stream()
 			.map(fe -> new ValidationErrorDetail(fe.getField(), fe.getRejectedValue(), fe.getDefaultMessage()))
-			.collect(Collectors.toList());
+			.toList();
 		ErrorCode code = ErrorCode.VALIDATION_FAILED;
 		return ResponseEntity.status(code.getHttpStatus()).body(ApiErrorResponse.of(code, code.getDefaultMessage(), details));
 	}

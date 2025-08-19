@@ -31,4 +31,8 @@ public class AnswerSelection {
 		this.questionPost = questionPost;
 		this.answerPost = answerPost;
 	}
+
+	public void changeAnswer(AnswerPost answerPost) {
+		this.answerPost = answerPost;
+	}
 }

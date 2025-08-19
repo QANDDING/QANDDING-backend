@@ -7,6 +7,9 @@ import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.global.common.paging.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,8 +37,16 @@ public class CommentController {
     @Operation(summary = "댓글 생성", description = "텍스트와 파일(이미지/PDF)을 멀티파트로 받아 댓글을 생성합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "생성 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패"),
-            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            ),
+            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"ANSWER_NOT_FOUND\", \"message\": \"답변을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            )
     })
     public ResponseEntity<Long> create(
             @Parameter(description = "답변 ID") @RequestParam("answerPostId") Long answerPostId,
@@ -68,6 +79,19 @@ public class CommentController {
 
     @PostMapping(value = "/reply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "대댓글 생성", description = "특정 댓글에 대한 답글을 생성합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "생성 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            ),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"COMMENT_NOT_FOUND\", \"message\": \"댓글을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            )
+    })
     public ResponseEntity<Long> reply(
             @Parameter(description = "부모 댓글 ID") @RequestParam("parentCommentId") Long parentCommentId,
             @Parameter(description = "답글 내용") @RequestParam("content") String content,
@@ -85,9 +109,21 @@ public class CommentController {
     @Operation(summary = "댓글 삭제", description = "특정 댓글을 삭제합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패"),
-            @ApiResponse(responseCode = "403", description = "권한 없음"),
-            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음")
+            @ApiResponse(responseCode = "401", description = "인증 실패",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            ),
+            @ApiResponse(responseCode = "403", description = "권한 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "forbidden", value = "{\n  \"code\": \"FORBIDDEN_ACTION\", \"message\": \"권한이 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            ),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
+                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"COMMENT_NOT_FOUND\", \"message\": \"댓글을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
+            )
     })
     public ResponseEntity<Void> delete(@Parameter(description = "댓글 ID") @PathVariable Long id) {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

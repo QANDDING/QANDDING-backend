@@ -17,6 +17,7 @@ import com.qandding.global.storage.S3PresignService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Collections;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -75,9 +76,9 @@ public class AnswerQueryRepository {
 		List<AnswerDtos.Summary> content = base.stream()
 			.map(s -> new AnswerDtos.Summary(
 				s.getId(), s.getTitle(), s.getAuthorNickname(), s.isHasAi(), s.getCreatedAt(),
-				imageMap.getOrDefault(s.getId(), List.of())
+				imageMap.getOrDefault(s.getId(), java.util.List.of())
 			))
-			.collect(Collectors.toList());
+			.toList();
 
 		return new PageImpl<>(content, pageable, total);
 	}
