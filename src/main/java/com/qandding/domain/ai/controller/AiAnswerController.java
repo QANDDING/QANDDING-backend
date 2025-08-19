@@ -11,9 +11,7 @@ import com.qandding.global.common.paging.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -53,14 +51,6 @@ public class AiAnswerController {
 
     @PostMapping(value = "/generate", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "AI 답변 생성/재생성", description = "프롬프트 또는 파일(OCR) 기반으로 AI 답변을 생성하거나 재생성(대체)합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "생성 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
-    })
     public ResponseEntity<AiAnswerDtos.Detail> generateUnified(
             @Parameter(description = "질문 ID") @RequestParam("questionPostId") Long questionPostId,
             @Parameter(description = "프롬프트 (선택)") @RequestParam(value = "prompt", required = false) String prompt,
@@ -93,11 +83,7 @@ public class AiAnswerController {
     @Operation(summary = "AI 답변 상세 조회", description = "특정 AI 답변의 상세 정보를 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"ANSWER_NOT_FOUND\", \"message\": \"답변을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
     public ResponseEntity<AiAnswerDtos.Detail> get(@Parameter(description = "AI 답변 ID") @PathVariable Long id) {
         AiAnswerDtos.Detail detail = aiAnswerService.getAiAnswerDetail(id);

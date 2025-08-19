@@ -3,7 +3,6 @@ package com.qandding.domain.question.repository;
 import static com.qandding.domain.professor.entity.QProfessor.professor;
 import static com.qandding.domain.question.entity.QQuestionPost.questionPost;
 import static com.qandding.domain.subject.entity.QSubject.subject;
-import static com.qandding.domain.answer.entity.QAnswerSelection.answerSelection;
 import static com.qandding.domain.user.entity.QUser.user;
 
 import com.qandding.domain.question.dto.QuestionDtos;
@@ -33,21 +32,19 @@ public class QuestionQueryRepository {
 			.fetchCount();
 
 		// 2. 페이징된 데이터 조회 (완전히 별도 쿼리)
-        var selectQuery = query
-            .select(Projections.constructor(QuestionDtos.Summary.class,
-                questionPost.id,
-                questionPost.title,
-                user.nickname,
-                subject.name,
-                professor.name,
-                questionPost.createdAt,
-                answerSelection.id.isNotNull()
-            ))
-            .from(questionPost)
-            .leftJoin(questionPost.user, user)
-            .leftJoin(questionPost.subject, subject)
-            .leftJoin(questionPost.professor, professor)
-            .leftJoin(answerSelection).on(answerSelection.questionPost.id.eq(questionPost.id));
+		var selectQuery = query
+			.select(Projections.constructor(QuestionDtos.Summary.class,
+				questionPost.id,
+				questionPost.title,
+				user.nickname,
+				subject.name,
+				professor.name,
+				questionPost.createdAt
+			))
+			.from(questionPost)
+			.leftJoin(questionPost.user, user)
+			.leftJoin(questionPost.subject, subject)
+			.leftJoin(questionPost.professor, professor);
 
 		// where 조건 추가
 		if (subjectId != null) {

@@ -4,7 +4,6 @@ import com.qandding.domain.answer.dto.AnswerDtos;
 import com.qandding.domain.answer.entity.AnswerPost;
 import com.qandding.domain.answer.repository.AnswerImageRepository;
 import com.qandding.domain.answer.repository.AnswerPostRepository;
-import com.qandding.domain.answer.repository.AnswerSelectionRepository;
 import com.qandding.domain.question.dto.QuestionDtos;
 import com.qandding.domain.question.entity.QuestionImage;
 import com.qandding.domain.question.entity.QuestionPost;
@@ -50,7 +49,6 @@ public class QuestionService {
     private final S3PresignService s3PresignService;
     private final AnswerPostRepository answerPostRepository;
     private final AnswerImageRepository answerImageRepository;
-    private final AnswerSelectionRepository answerSelectionRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -146,29 +144,26 @@ public class QuestionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
         List<String> images = questionImageRepository
                 .findByQuestionPostIdOrderBySortOrderAsc(questionId)
-                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).toList();
-        boolean accepted = answerSelectionRepository.findByQuestionPost(q)
-                .map(sel -> sel.getAnswerPost().getAiAnswer() == null)
-                .orElse(false);
-        return new QuestionDtos.Detail(
-                q.getId(), q.getTitle(), q.getContent(),
+                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).collect(Collectors.toList());
+        return new QuestionDtos.Detail(q.getId(), q.getTitle(), q.getContent(),
                 q.getUser().getNickname(), q.getSubject().getName(),
-                q.getProfessor().getName(), q.getCreatedAt(), images, accepted
-        );
+                q.getProfessor().getName(), q.getCreatedAt(), images);
     }
 
     public QuestionDtos.DetailWithAnswers getQuestionDetailWithAnswers(Long questionId, int page, int size) {
         QuestionPost q = questionPostRepository.findById(questionId).orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
         List<String> qImages = questionImageRepository
                 .findByQuestionPostIdOrderBySortOrderAsc(questionId)
-                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).toList();
+                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).collect(Collectors.toList());
 
         // 가장 최신 AI 답변을 우선 선택
         AnswerPost aiPost = answerPostRepository.findTopByQuestionPost_IdAndAiAnswerIsNotNullOrderByCreatedAtDesc(questionId);
-        AnswerDtos.Ai aiDetail = null;
+        AnswerDtos.Detail aiDetail = null;
         if (aiPost != null) {
-            aiDetail = new AnswerDtos.Ai(aiPost.getId(), aiPost.getTitle(), aiPost.getContent(),
-                    aiPost.getUser().getNickname(), aiPost.getCreatedAt());
+            List<String> imgs = answerImageRepository.findByAnswerPostIdOrderBySortOrderAsc(aiPost.getId())
+                    .stream().map(ai -> s3PresignService.presignGetUrlByUrl(ai.getUrl())).toList();
+            aiDetail = new AnswerDtos.Detail(aiPost.getId(), aiPost.getTitle(), aiPost.getContent(),
+                    aiPost.getUser().getNickname(), aiPost.getCreatedAt(), imgs, true);
         }
 
         PageRequest p = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
@@ -181,31 +176,21 @@ public class QuestionService {
                 imgMap.computeIfAbsent(ai.getAnswerPost().getId(), k -> new ArrayList<>()).add(s3PresignService.presignGetUrlByUrl(ai.getUrl()));
             }
         }
-        // 채택 여부 표시를 위해 selection 조회 (람다에서 사용 가능하도록 final로 계산)
-        var question = questionPostRepository.findById(questionId).orElse(null);
-        final Long acceptedAnswerId = (question == null)
-                ? null
-                : answerSelectionRepository.findByQuestionPost(question)
-                    .map(s -> s.getAnswerPost().getAiAnswer() == null ? s.getAnswerPost().getId() : null)
-                    .orElse(null);
-
         var userDetails = userPage.getContent().stream().map(pst -> new AnswerDtos.Detail(
                 pst.getId(), pst.getTitle(), pst.getContent(), pst.getUser().getNickname(), pst.getCreatedAt(),
-                imgMap.getOrDefault(pst.getId(), java.util.List.of()),
-                java.util.Objects.equals(pst.getId(), acceptedAnswerId)
-        )).toList();
+                imgMap.getOrDefault(pst.getId(), List.of()), false
+        )).collect(Collectors.toList());
         var detailPage = new org.springframework.data.domain.PageImpl<>(userDetails, p, userPage.getTotalElements());
         var combined = new AnswerDtos.Combined(aiDetail, com.qandding.global.common.paging.PageResponse.of(detailPage));
 
-        boolean accepted = acceptedAnswerId != null;
         return new QuestionDtos.DetailWithAnswers(
                 q.getId(), q.getTitle(), q.getContent(), q.getUser().getNickname(), q.getSubject().getName(), q.getProfessor().getName(),
-                q.getCreatedAt(), qImages, accepted, combined
+                q.getCreatedAt(), qImages, combined
         );
     }
 
     public List<String> getQuestionImages(Long questionId) {
         return questionImageRepository.findByQuestionPostIdOrderBySortOrderAsc(questionId)
-                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).toList();
+                .stream().map(qi -> s3PresignService.presignGetUrlByUrl(qi.getUrl())).collect(Collectors.toList());
     }
 }

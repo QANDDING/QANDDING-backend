@@ -8,9 +8,6 @@ import com.qandding.global.common.paging.PageResponse;
 import com.qandding.global.storage.S3PresignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -45,16 +42,8 @@ public class UserAnswerController {
     @Operation(summary = "사용자 답변 생성", description = "텍스트와 파일(이미지/PDF)을 멀티파트로 받아 사용자 답변을 생성합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "생성 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            ),
-            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"QUESTION_NOT_FOUND\", \"message\": \"질문을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
     })
     public ResponseEntity<Long> create(
             @Parameter(description = "질문 ID") @RequestParam("questionPostId") Long questionPostId,
@@ -106,11 +95,7 @@ public class UserAnswerController {
     @Operation(summary = "사용자 답변 상세 조회", description = "특정 사용자 답변의 상세 정보를 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "조회 성공"),
-            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"ANSWER_NOT_FOUND\", \"message\": \"답변을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
     public ResponseEntity<UserAnswerDtos.Detail> get(@Parameter(description = "답변 ID") @PathVariable Long id) {
         log.info("Fetching user answer with id: {}", id);
@@ -122,21 +107,9 @@ public class UserAnswerController {
     @Operation(summary = "사용자 답변 삭제", description = "특정 사용자 답변을 삭제합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            ),
-            @ApiResponse(responseCode = "403", description = "권한 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "forbidden", value = "{\n  \"code\": \"FORBIDDEN_ACTION\", \"message\": \"권한이 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            ),
-            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = com.qandding.global.common.error.ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"ANSWER_NOT_FOUND\", \"message\": \"답변을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
     public ResponseEntity<Void> delete(@Parameter(description = "답변 ID") @PathVariable Long id) {
         CustomUserPrincipal customPrincipal = getCustomUserPrincipal();

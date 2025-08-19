@@ -12,11 +12,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.qandding.global.common.error.ApiErrorResponse;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,16 +47,8 @@ public class QuestionController {
     @Operation(summary = "질문 생성", description = "멀티파트로 텍스트 + 파일(선택)을 받아 질문을 생성합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "질문 생성 성공 (ID 반환)"),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            ),
-            @ApiResponse(responseCode = "404", description = "관련 정보(사용자, 과목, 교수)를 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"SUBJECT_NOT_FOUND\", \"message\": \"과목을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "404", description = "관련 정보(사용자, 과목, 교수)를 찾을 수 없음")
     })
     public ResponseEntity<Long> create(
             @Parameter(description = "질문 제목", required = true, schema = @Schema(type = "string")) @RequestParam("title") String title,
@@ -76,25 +66,11 @@ public class QuestionController {
 
     @GetMapping
     @Operation(summary = "질문 목록 조회", description = "조건에 맞는 질문 목록을 페이징하여 조회합니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = QuestionDtos.PageResponseSummary.class),
-                            examples = @ExampleObject(name = "questions-page-example", value = "{\n  \"content\": [\n    {\n      \"id\": 101, \"title\": \"적분 질문\", \"authorNickname\": \"홍길동\",\n      \"subjectName\": \"미적분학\", \"professorName\": \"김교수\",\n      \"createdAt\": \"2025-08-19T12:34:56\", \"accept\": true\n    },\n    {\n      \"id\": 100, \"title\": \"확률 질문\", \"authorNickname\": \"이몽룡\",\n      \"subjectName\": \"확률과통계\", \"professorName\": \"박교수\",\n      \"createdAt\": \"2025-08-18T09:12:00\", \"accept\": false\n    }\n  ],\n  \"page\": 0, \"size\": 10, \"totalElements\": 2, \"totalPages\": 1\n}"
-                            )
-                    )
-            ),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
-    })
     public ResponseEntity<PageResponse<QuestionDtos.Summary>> list(
-            @Parameter(description = "과목 ID (선택)", example = "1") @RequestParam(required = false) Long subjectId,
-            @Parameter(description = "교수 ID (선택)", example = "10") @RequestParam(required = false) Long professorId,
-            @Parameter(description = "페이지 번호", example = "0") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", example = "10") @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "과목 ID (선택)") @RequestParam(required = false) Long subjectId,
+            @Parameter(description = "교수 ID (선택)") @RequestParam(required = false) Long professorId,
+            @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         var res = questionQueryRepository.findSummaries(subjectId, professorId, pageable);
         return ResponseEntity.ok(PageResponse.of(res));
@@ -103,18 +79,8 @@ public class QuestionController {
     @GetMapping("/{id}")
     @Operation(summary = "질문 상세 조회", description = "특정 질문의 상세 정보를 조회합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = QuestionDtos.Detail.class),
-                            examples = @ExampleObject(name = "question-detail-example", value = "{\n  \"id\": 101, \"title\": \"적분 질문\", \"content\": \"...\",\n  \"authorNickname\": \"홍길동\", \"subjectName\": \"미적분학\", \"professorName\": \"김교수\",\n  \"createdAt\": \"2025-08-19T12:34:56\", \"imageUrls\": [], \"accept\": false\n}"
-                            )
-                    )
-            ),
-            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"QUESTION_NOT_FOUND\", \"message\": \"질문을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
     })
     public ResponseEntity<QuestionDtos.Detail> get(@Parameter(description = "질문 ID") @PathVariable Long id) {
         return ResponseEntity.ok(questionService.getQuestionDetail(id));
@@ -126,21 +92,9 @@ public class QuestionController {
     @Operation(summary = "질문 삭제", description = "특정 질문을 삭제합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "삭제 성공"),
-            @ApiResponse(responseCode = "401", description = "인증 실패",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "unauthorized", value = "{\n  \"code\": \"UNAUTHORIZED\", \"message\": \"인증이 필요합니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            ),
-            @ApiResponse(responseCode = "403", description = "권한 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "forbidden", value = "{\n  \"code\": \"FORBIDDEN_ACTION\", \"message\": \"권한이 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            ),
-            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음",
-                    content = @Content(mediaType = "application/json",
-                            schema = @Schema(implementation = ApiErrorResponse.class),
-                            examples = @ExampleObject(name = "not-found", value = "{\n  \"code\": \"QUESTION_NOT_FOUND\", \"message\": \"질문을 찾을 수 없습니다.\", \"timestamp\": \"2025-08-19T12:34:56Z\", \"errors\": []\n}"))
-            )
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "권한 없음"),
+            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
     })
     public ResponseEntity<Void> delete(@Parameter(description = "질문 ID") @PathVariable Long id) {
         CustomUserPrincipal customPrincipal = getCustomUserPrincipal();
