@@ -1,8 +1,15 @@
 package com.qandding.global.config;
 
+import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.domain.user.entity.User;
+import com.qandding.domain.user.repository.UserRepository;
+import com.qandding.global.auth.JwtAuthenticationFilter;
+import com.qandding.global.auth.TokenService;
+import com.qandding.global.ratelimit.RateLimitFilter;
+import jakarta.servlet.http.Cookie;
 import java.util.List;
 import java.util.Map;
-
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -22,19 +29,8 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.util.StringUtils;
-
-import com.qandding.domain.user.entity.CustomUserPrincipal;
-import com.qandding.domain.user.entity.User;
-import com.qandding.domain.user.repository.UserRepository;
-import com.qandding.global.auth.JwtAuthenticationFilter;
-import com.qandding.global.auth.JwtTokenProvider;
-import com.qandding.global.auth.TokenService;
-import com.qandding.global.ratelimit.RateLimitFilter;
-
-import jakarta.servlet.http.Cookie;
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -56,7 +52,6 @@ public class SecurityConfig {
     private final UserRepository userRepository;
     private final CorsConfigurationSource corsConfigurationSource;
     private final RateLimitFilter rateLimitFilter;
-    private final JwtTokenProvider jwtTokenProvider;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final TokenService tokenService;
 
