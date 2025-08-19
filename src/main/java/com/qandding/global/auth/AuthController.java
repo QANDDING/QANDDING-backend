@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,21 +23,11 @@ public class AuthController {
   private final JwtTokenProvider jwtTokenProvider;
 
   @PostMapping("/refresh")
-  public ResponseEntity<TokenResponse> refreshToken(
-      @RequestBody RefreshTokenRequest request,
-      HttpServletResponse response) {
+  public ResponseEntity<TokenResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
     try {
       String newAccessToken = tokenService.refreshAccessToken(request.refreshToken());
 
-      // 새로운 Access Token을 httpOnly 쿠키로 설정 (하위 호환성)
-      Cookie accessCookie = new Cookie("access_token", newAccessToken);
-      accessCookie.setHttpOnly(true);
-      accessCookie.setSecure(true);
-      accessCookie.setPath("/");
-      accessCookie.setMaxAge(900); // 15분
-      response.addCookie(accessCookie);
-
-      // 새로운 Access Token을 응답 본문에도 포함 (프론트엔드에서 Authorization 헤더 사용 시)
+      // 새로운 Access Token을 응답 본문에 포함
       return ResponseEntity.ok(new TokenResponse(newAccessToken, null, "ACCESS_TOKEN_REFRESHED"));
     } catch (Exception e) {
       log.error("토큰 재발급 실패: {}", e.getMessage());
@@ -48,11 +36,9 @@ public class AuthController {
   }
 
   @PostMapping("/logout")
-  public ResponseEntity<Void> logout(
-      @AuthenticationPrincipal CustomUserPrincipal customPrincipal,
-      HttpServletResponse response) {
+  public ResponseEntity<Void> logout(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
     try {
-      // 사용자가 인증되지 않은 경우에도 쿠키만 만료 처리
+      // 사용자가 인증되지 않은 경우에도 처리
       if (customPrincipal == null) {
         log.warn("로그아웃 요청: 인증되지 않은 사용자");
       } else {
@@ -60,15 +46,6 @@ public class AuthController {
         tokenService.invalidateTokens(customPrincipal.getUserId());
         log.info("사용자 로그아웃 완료 - userId: {}", customPrincipal.getUserId());
       }
-
-      // Access Token 쿠키 만료 처리
-      Cookie accessCookie = new Cookie("access_token", "");
-      accessCookie.setHttpOnly(true);
-      accessCookie.setSecure(true);
-      accessCookie.setPath("/");
-      accessCookie.setMaxAge(0); // 즉시 만료
-      response.addCookie(accessCookie);
-
     } catch (Exception e) {
       log.error("로그아웃 처리 중 오류: {}", e.getMessage());
     }

@@ -33,7 +33,6 @@ import com.qandding.global.auth.JwtTokenProvider;
 import com.qandding.global.auth.TokenService;
 import com.qandding.global.ratelimit.RateLimitFilter;
 
-import jakarta.servlet.http.Cookie;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -46,12 +45,6 @@ public class SecurityConfig {
 
   @Value("${app.oauth.redirect-url}")
   private String redirectUrl;
-
-  @Value("${app.jwt.cookie-domain:}")
-  private String cookieDomain;
-
-  @Value("${app.jwt.cookie-secure:false}")
-  private boolean cookieSecure;
 
   private final UserRepository userRepository;
   private final CorsConfigurationSource corsConfigurationSource;
@@ -208,23 +201,10 @@ public class SecurityConfig {
       // JWT 토큰 쌍 생성 (Access Token + Refresh Token)
       TokenService.TokenPair tokenPair = tokenService.generateTokenPair(user);
 
-      // Access Token을 httpOnly 쿠키로 설정
-      Cookie accessCookie = new Cookie("access_token", tokenPair.getAccessToken());
-      accessCookie.setHttpOnly(true);
-      accessCookie.setSecure(cookieSecure); // 환경에 따라 설정
-      accessCookie.setPath("/");
-      accessCookie.setMaxAge(900); // 15분 (초 단위)
-
-      // 도메인 설정 (개발/프로덕션 환경에 따라)
-      if (StringUtils.hasText(cookieDomain)) {
-        accessCookie.setDomain(cookieDomain);
-      }
-
-      response.addCookie(accessCookie);
-
-      // Refresh Token은 URL 파라미터로 전달 (localStorage 저장용)
+      // 프론트엔드로 토큰 정보 전달 (URL 파라미터)
       String frontendUrl = redirectUrl +
           "?success=true&needsProfile=" + needsProfile +
+          "&accessToken=" + tokenPair.getAccessToken() +
           "&refreshToken=" + tokenPair.getRefreshToken();
 
       // 자동 리다이렉트

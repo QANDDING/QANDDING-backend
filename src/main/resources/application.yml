@@ -62,7 +62,6 @@ app:
     secret: ${APP_JWT_SECRET}
     access-expiration: ${APP_JWT_ACCESS_EXPIRATION}
     refresh-expiration: ${APP_JWT_REFRESH_EXPIRATION}
-    cookie-secure: ${APP_JWT_COOKIE_SECURE}
 ---
 spring:
   config:

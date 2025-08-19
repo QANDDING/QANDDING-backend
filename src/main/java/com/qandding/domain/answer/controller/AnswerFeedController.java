@@ -2,6 +2,9 @@ package com.qandding.domain.answer.controller;
 
 import com.qandding.domain.answer.dto.AnswerDtos;
 import com.qandding.domain.answer.service.AnswerFeedService;
+import com.qandding.domain.user.entity.CustomUserPrincipal;
+import com.qandding.global.common.error.BusinessException;
+import com.qandding.global.common.error.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -13,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -80,15 +84,37 @@ public class AnswerFeedController {
                                             "}"
                             )
                     )
-            )
+            ),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<AnswerDtos.Combined> combined(
             @Parameter(description = "질문 ID", required = true, schema = @Schema(type = "integer", format = "int64")) @RequestParam("questionPostId") Long questionPostId,
             @Parameter(description = "페이지 번호", schema = @Schema(type = "integer", defaultValue = "0")) @RequestParam(value = "page", defaultValue = "0") int page,
-            @Parameter(description = "페이지 크기", schema = @Schema(type = "integer", defaultValue = "3")) @RequestParam(value = "size", defaultValue = "3") int size
+            @Parameter(description = "페이지 크기", schema = @Schema(type = "integer", defaultValue = "3")) @RequestParam(value = "size", defaultValue = "3") int size,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        AnswerDtos.Combined combinedFeed = answerFeedService.getCombinedFeed(questionPostId, page, size);
-        return ResponseEntity.ok(combinedFeed);
+        // JWT 토큰 검증 (Spring Security가 자동으로 처리)
+        if (customPrincipal == null) {
+            log.error("인증되지 않은 사용자의 답변 피드 조회 요청");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        
+        log.info("답변 피드 조회 요청 - userId: {}, questionPostId: {}, page: {}", 
+                customPrincipal.getUserId(), questionPostId, page);
+        
+        try {
+            AnswerDtos.Combined combinedFeed = answerFeedService.getCombinedFeed(questionPostId, page, size);
+            log.info("답변 피드 조회 완료 - userId: {}, questionPostId: {}", 
+                    customPrincipal.getUserId(), questionPostId);
+            return ResponseEntity.ok(combinedFeed);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("답변 피드 조회 중 오류 발생 - userId: {}, questionPostId: {}", 
+                    customPrincipal.getUserId(), questionPostId, e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "답변 피드 조회 중 오류가 발생했습니다.");
+        }
     }
 }
 

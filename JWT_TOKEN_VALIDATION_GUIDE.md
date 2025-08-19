@@ -17,7 +17,7 @@
 #### JwtAuthenticationFilter
 
 - HTTP 요청에서 JWT 토큰 추출
-- Authorization 헤더와 쿠키 모두 지원
+- **Authorization 헤더에서 Bearer 토큰 추출**
 - Spring Security 컨텍스트에 인증 정보 설정
 
 #### TokenService
@@ -48,18 +48,13 @@ Controller (비즈니스 로직)
 
 ## 토큰 처리 방식
 
-### 1. 토큰 추출 우선순위
+### 1. 토큰 추출 방식
 
-1. **Authorization 헤더** (우선순위 높음)
+**Authorization 헤더** (유일한 방식)
 
-   ```
-   Authorization: Bearer <access_token>
-   ```
-
-2. **쿠키** (하위 호환성)
-   ```
-   Cookie: access_token=<access_token>
-   ```
+```
+Authorization: Bearer <access_token>
+```
 
 ### 2. 토큰 타입 구분
 
@@ -84,181 +79,149 @@ Controller (비즈니스 로직)
 "/api/comments/**"      // 댓글 관련 API
 "/api/ai-answers/**"    // AI 답변 관련 API
 "/api/questions/**"     // 질문 관련 API
-"/api/user-answers/**"  // 사용자 답변 관련 API
 "/api/answers/**"       // 답변 관련 API
-"/api/storage/**"       // 스토리지 관련 API
+"/api/user-answers/**"  // 사용자 답변 관련 API
+"/api/storage/**"       // 파일 저장소 관련 API
 ```
 
 ### 2. 공개 경로
 
 ```java
-// 보호되지 않는 경로
-"/api/auth/**"          // 인증 관련 API
-"/api/health"           // 헬스 체크
 "/"                     // 루트 경로
-"/error"                // 에러 페이지
-"/swagger-ui/**"        // Swagger UI
-"/v3/api-docs/**"       // API 문서
-"/favicon.ico"          // 파비콘
+"/api/health"           // 헬스 체크
+"/api/auth/**"          // 인증 관련 API
+"/api/subjects/**"      // 과목 검색 API (공개)
+"/api/professors/**"    // 교수 검색 API (공개)
 ```
 
-## 사용 방법
+## 프론트엔드 연동
 
-### 1. 컨트롤러에서 토큰 검증
+### 1. 토큰 전송
 
-```java
-@PostMapping("/create")
-public ResponseEntity<Long> create(
-        @RequestBody CreateRequest request,
-        @AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+```javascript
+// API 요청 시 Authorization 헤더에 토큰 포함
+const headers = {
+  Authorization: `Bearer ${accessToken}`,
+  'Content-Type': 'application/json',
+};
 
-    // JWT 토큰 검증 (Spring Security가 자동으로 처리)
-    if (customPrincipal == null) {
-        throw new BusinessException(ErrorCode.UNAUTHORIZED);
-    }
-
-    // 비즈니스 로직 수행
-    Long result = service.create(request, customPrincipal.getUserId());
-    return ResponseEntity.ok(result);
-}
+fetch('/api/users/me', { headers })
+  .then((response) => response.json())
+  .then((data) => console.log(data));
 ```
 
-### 2. 커스텀 어노테이션 사용
+### 2. 토큰 갱신
 
-```java
-@JwtTokenRequired(message = "인증이 필요합니다.")
-@PostMapping("/create")
-public ResponseEntity<Long> create(@RequestBody CreateRequest request) {
-    // 자동으로 토큰 검증 수행
-    // 비즈니스 로직 수행
-}
+```javascript
+// Refresh Token으로 새로운 Access Token 발급
+const refreshToken = localStorage.getItem('refreshToken');
+
+fetch('/api/auth/refresh', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ refreshToken }),
+})
+  .then((response) => response.json())
+  .then((data) => {
+    localStorage.setItem('accessToken', data.accessToken);
+  });
 ```
 
-### 3. 수동 토큰 검증
+### 3. 로그아웃
 
-```java
-@Autowired
-private JwtTokenValidator jwtTokenValidator;
-
-public void someMethod(String token) {
-    Long userId = jwtTokenValidator.validateToken(token);
-    // 검증된 사용자 ID로 작업 수행
-}
+```javascript
+// 서버에 로그아웃 요청
+fetch('/api/auth/logout', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${accessToken}` },
+}).then(() => {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+});
 ```
+
+## 보안 고려사항
+
+### 1. 토큰 저장
+
+- **Access Token**: 메모리 또는 임시 저장소 (15분 만료)
+- **Refresh Token**: 안전한 저장소 (localStorage, sessionStorage 등)
+
+### 2. 토큰 전송
+
+- HTTPS 통신 필수
+- Authorization 헤더 사용
+- 쿠키 사용하지 않음
+
+### 3. 토큰 만료 처리
+
+- 401 응답 시 자동으로 토큰 갱신 시도
+- 갱신 실패 시 로그인 페이지로 리다이렉트
 
 ## 에러 처리
 
-### 1. 인증 관련 에러
-
-- **UNAUTHORIZED**: 토큰이 없거나 유효하지 않음
-- **FORBIDDEN_ACTION**: 권한이 없음
-
-### 2. 에러 응답 형식
+### 1. 인증 실패 (401)
 
 ```json
 {
   "code": "UNAUTHORIZED",
   "message": "인증이 필요합니다.",
-  "timestamp": "2025-01-20T10:00:00.000+00:00",
+  "timestamp": "2025-08-19T10:00:00.000+00:00",
   "errors": []
 }
 ```
 
-## 보안 고려사항
+### 2. 권한 없음 (403)
 
-### 1. 토큰 보안
+```json
+{
+  "code": "FORBIDDEN_ACTION",
+  "message": "권한이 없습니다.",
+  "timestamp": "2025-08-19T10:00:00.000+00:00",
+  "errors": []
+}
+```
 
-- Access Token은 15분으로 짧게 설정
-- Refresh Token은 httpOnly 쿠키로 보호
-- 토큰 무효화 시 즉시 DB에서 삭제
+## 개발 환경 설정
+
+### 1. 환경 변수
+
+```yaml
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET}
+    access-expiration: ${APP_JWT_ACCESS_EXPIRATION}
+    refresh-expiration: ${APP_JWT_REFRESH_EXPIRATION}
+```
 
 ### 2. CORS 설정
 
-- 허용된 도메인만 접근 가능
-- Credentials 포함 요청 지원
-- 보안 헤더 설정
-
-### 3. Rate Limiting
-
-- API 요청 빈도 제한
-- 인증 실패 시 추가 제한
-
-## 모니터링 및 로깅
-
-### 1. 로그 레벨
-
-- **DEBUG**: 토큰 검증 성공
-- **INFO**: 주요 작업 완료
-- **WARN**: 토큰 관련 경고
-- **ERROR**: 인증 실패 및 오류
-
-### 2. 모니터링 지표
-
-- 토큰 검증 성공/실패율
-- 토큰 만료 빈도
-- 인증 실패 패턴
-
-## 문제 해결
-
-### 1. 일반적인 문제
-
-#### 토큰 만료
-
-```
-에러: "토큰이 만료되었거나 유효하지 않습니다."
-해결: Refresh Token으로 새로운 Access Token 발급
+```yaml
+app:
+  cors:
+    allowed-headers: 'Authorization,Content-Type,X-Requested-With'
+    exposed-headers: 'Authorization'
 ```
 
-#### 권한 부족
+## 테스트
 
+### 1. 토큰 검증 테스트
+
+```bash
+# 유효한 토큰으로 API 호출
+curl -H "Authorization: Bearer <access_token>" \
+     http://localhost:8080/api/users/me
+
+# 토큰 없이 API 호출 (401 예상)
+curl http://localhost:8080/api/users/me
 ```
-에러: "해당 사용자 정보에 접근할 권한이 없습니다."
-해결: 올바른 사용자로 로그인 또는 권한 확인
+
+### 2. 토큰 갱신 테스트
+
+```bash
+# Refresh Token으로 새로운 Access Token 발급
+curl -X POST \
+     -H "Content-Type: application/json" \
+     -d '{"refreshToken":"<refresh_token>"}' \
+     http://localhost:8080/api/auth/refresh
 ```
-
-#### CORS 오류
-
-```
-에러: "CORS 정책 위반"
-해결: 프론트엔드 도메인을 CORS 설정에 추가
-```
-
-### 2. 디버깅 방법
-
-1. **로그 확인**: JWT 관련 로그 메시지 확인
-2. **토큰 검증**: `/api/auth/validate` 엔드포인트로 토큰 테스트
-3. **헤더 확인**: Authorization 헤더가 올바르게 전송되는지 확인
-
-## 성능 최적화
-
-### 1. 토큰 검증 최적화
-
-- DB 조회 최소화
-- 캐싱 전략 적용
-- 비동기 처리 고려
-
-### 2. 메모리 사용량
-
-- 토큰 크기 최적화
-- 불필요한 클레임 제거
-- 정기적인 토큰 정리
-
-## 향후 개선 계획
-
-### 1. 단기 계획
-
-- [ ] 토큰 블랙리스트 구현
-- [ ] 다중 디바이스 지원
-- [ ] 토큰 사용 통계 추가
-
-### 2. 장기 계획
-
-- [ ] OAuth 2.0 표준 준수 강화
-- [ ] 마이크로서비스 아키텍처 지원
-- [ ] Zero Trust 보안 모델 적용
-
-## 참고 자료
-
-- [JWT 공식 문서](https://jwt.io/)
-- [Spring Security JWT 가이드](https://spring.io/guides/tutorials/spring-security-and-angular-js/)
-- [OAuth 2.0 표준](https://tools.ietf.org/html/rfc6749)
