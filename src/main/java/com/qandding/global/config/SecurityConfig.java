@@ -193,12 +193,20 @@ public class SecurityConfig {
 
             System.out.println("SecurityContext 설정 완료");
 
-            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            Map<String, Object> body = new HashMap<>();
-            body.put("success", true);
-            body.put("needsProfile", needsProfile);
-            body.put("redirectUrl", redirectUrl);
-            new ObjectMapper().writeValue(response.getOutputStream(), body);
+            // 프론트엔드로 자동 리다이렉트
+            String frontendUrl = redirectUrl;
+            
+            if (needsProfile) {
+                frontendUrl += "/profile-setup";
+            } else {
+                frontendUrl += "/dashboard";
+            }
+            
+            // 성공 정보를 URL 파라미터로 전달
+            frontendUrl += "?success=true&needsProfile=" + needsProfile;
+            
+            // 자동 리다이렉트 (사용자가 에러 페이지를 보지 않음)
+            response.sendRedirect(frontendUrl);
 
             System.out.println("=== OAuth2 로그인 성공 핸들러 완료 ===");
         };

@@ -42,7 +42,7 @@ public class QuestionAiGenerateListener {
     private final OcrSolveService ocrSolveService;
     private final S3PresignService s3PresignService;
 
-    @Value("${app.ai.auto-generate.enabled:false}")
+    @Value("${app.ai.auto-generate.enabled:true}")
     private boolean autoGenerateEnabled;
 
     @Value("${app.ai.auto-generate.cooldown-seconds:600}")
