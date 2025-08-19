@@ -190,13 +190,15 @@ public class SecurityConfig {
       // Spring Security 컨텍스트에 새로운 인증 정보 설정
       SecurityContextHolder.getContext().setAuthentication(newAuthentication);
 
-      // 세션에도 저장
+      // 세션에는 최소한의 정보만 저장 (OAuth2 상태 유지용)
       request.getSession().setAttribute(
-          "SPRING_SECURITY_CONTEXT",
-          SecurityContextHolder.getContext()
+          "OAUTH2_AUTHENTICATED", true
+      );
+      request.getSession().setAttribute(
+          "USER_ID", user.getId()
       );
 
-      System.out.println("SecurityContext 설정 완료");
+      System.out.println("SecurityContext 및 세션 설정 완료");
 
       // JWT 토큰 쌍 생성 (Access Token + Refresh Token)
       TokenService.TokenPair tokenPair = tokenService.generateTokenPair(user);

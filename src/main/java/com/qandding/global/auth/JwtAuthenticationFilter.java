@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -76,8 +77,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     logger.warn("JWT 토큰은 유효하지만 사용자 정보를 찾을 수 없음 - userId: " + userId + ", email: " + email);
                 }
             } else {
-                if (StringUtils.hasText(jwt)) {
-                    logger.debug("JWT 토큰이 유효하지 않음: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
+                // JWT가 없거나 유효하지 않은 경우, OAuth2 세션 확인
+                if (request.getSession(false) != null && 
+                    request.getSession().getAttribute("OAUTH2_AUTHENTICATED") != null) {
+                    logger.debug("OAuth2 인증된 세션 확인됨 - JWT 토큰 발급 필요");
+                    // OAuth2 인증은 되어 있지만 JWT 토큰이 없는 경우
+                    // 프론트엔드에서 JWT 토큰을 요청하도록 안내
+                } else {
+                    if (StringUtils.hasText(jwt)) {
+                        logger.debug("JWT 토큰이 유효하지 않음: " + jwt.substring(0, Math.min(20, jwt.length())) + "...");
+                    }
                 }
             }
         } catch (Exception e) {
