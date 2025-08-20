@@ -43,13 +43,13 @@ app:
     secret-key: ${AWS_SECRET_ACCESS_KEY}
     url-expire-seconds: ${APP_S3_URL_EXPIRE_SECONDS}
     upload-prefix: ${APP_S3_UPLOAD_PREFIX}
-#  cors:
-#    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS}
-#    allowed-methods: ${APP_CORS_ALLOWED_METHODS}
-#    allowed-headers: ${APP_CORS_ALLOWED_HEADERS}
-#    exposed-headers: ${APP_CORS_EXPOSED_HEADERS}
-#    allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS}
-#    max-age-seconds: ${APP_CORS_MAX_AGE_SECONDS}
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://qandding.store,https://www.qandding.store}
+    allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
+    allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
+    exposed-headers: ${APP_CORS_EXPOSED_HEADERS:}
+    allow-credentials: ${APP_CORS_ALLOW_CREDENTIALS:true}
+    max-age-seconds: ${APP_CORS_MAX_AGE_SECONDS:3600}
 
   ratelimit:
     enabled: ${APP_RATELIMIT_ENABLED}
