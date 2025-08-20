@@ -5,6 +5,9 @@ import com.qandding.domain.answer.service.AnswerFeedService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +32,67 @@ public class AnswerFeedController {
     @GetMapping("/combined")
     @Operation(summary = "AI 최상단 + 사용자 답변 페이징", description = "AI 답변을 최상단으로, 이후 사용자 답변을 3개씩 페이징하여 상세 정보를 반환합니다.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "조회 성공"),
+            @ApiResponse(responseCode = "200", description = "조회 성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = AnswerDtos.Combined.class),
+                            examples = @ExampleObject(value = """
+{
+  "ai": {
+    "id": 1,
+    "title": "AI 답변 제목",
+    "content": "AI 답변 내용입니다.",
+    "authorNickname": "AI",
+    "createdAt": "2025-08-20T10:00:00Z",
+    "imageUrls": [],
+    "ai": true,
+    "isAdopted": false
+  },
+  "users": {
+    "content": [
+      {
+        "id": 101,
+        "title": "사용자 답변 1 제목",
+        "content": "사용자 답변 1 내용입니다.",
+        "authorNickname": "user1",
+        "createdAt": "2025-08-20T10:05:00Z",
+        "imageUrls": ["http://example.com/image1.jpg"],
+        "isAdopted": false
+      },
+      {
+        "id": 102,
+        "title": "사용자 답변 2 제목",
+        "content": "사용자 답변 2 내용입니다.",
+        "authorNickname": "user2",
+        "createdAt": "2025-08-20T10:10:00Z",
+        "imageUrls": [],
+        "isAdopted": true
+      }
+    ],
+    "pageable": {
+      "pageNumber": 0,
+      "pageSize": 3,
+      "sort": {
+        "empty": false,
+        "sorted": true,
+        "unsorted": false
+      },
+      "offset": 0,
+      "paged": true,
+      "unpaged": false
+    },
+    "totalPages": 1,
+    "totalElements": 2,
+    "last": true,
+    "first": true,
+    "numberOfElements": 2,
+    "size": 3,
+    "number": 0,
+    "empty": false
+  }
+}
+"""
+                            )
+                    )),
             @ApiResponse(responseCode = "401", description = "인증 실패"),
             @ApiResponse(responseCode = "500", description = "서버 오류")
     })

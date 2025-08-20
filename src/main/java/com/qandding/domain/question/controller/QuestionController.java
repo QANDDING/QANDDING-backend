@@ -5,6 +5,8 @@ import com.qandding.domain.question.repository.QuestionQueryRepository;
 import com.qandding.domain.question.service.QuestionService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.global.common.paging.PageResponse;
+import com.qandding.global.common.response.CommonResponse;
+import com.qandding.global.common.response.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -39,12 +41,15 @@ public class QuestionController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "질문 생성", description = "멀티파트로 텍스트 + 파일(선택)을 받아 질문을 생성합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "질문 생성 성공 (ID 반환)"),
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "질문 생성 성공",
+                content = @Content(mediaType = "application/json",
+                        schema = @Schema(implementation = CommonResponse.class))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "관련 정보(사용자, 과목, 교수)를 찾을 수 없음")
+        @ApiResponse(responseCode = "404", description = "관련 정보(사용자, 과목, 교수)를 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<Long> create(
+    public ResponseEntity<CommonResponse<Long>> create(
             @Parameter(description = "질문 제목", required = true, schema = @Schema(type = "string")) @RequestParam("title") String title,
             @Parameter(description = "질문 내용", required = true, schema = @Schema(type = "string")) @RequestParam("content") String content,
             @Parameter(description = "과목 ID", required = true, schema = @Schema(type = "integer", format = "int64")) @RequestParam("subjectId") Long subjectId,
@@ -59,7 +64,7 @@ public class QuestionController {
         Long questionId = questionService.createQuestionWithFiles(title, content, subjectId, professorId, files, customPrincipal.getUserId());
         log.info("질문 생성 완료 - questionId: {}, userId: {}", questionId, customPrincipal.getUserId());
         log.debug("create() 반환 - questionId: {}", questionId);
-        return ResponseEntity.ok(questionId);
+        return ResponseEntity.ok(CommonResponse.success(ResponseCode.CREATED, questionId));
     }
 
     @GetMapping
@@ -94,13 +99,16 @@ public class QuestionController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "질문 삭제", description = "특정 질문을 삭제합니다.")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "204", description = "삭제 성공"),
+        @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "질문 삭제 성공",
+                content = @Content(mediaType = "application/json",
+                        schema = @Schema(implementation = CommonResponse.class))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
         @ApiResponse(responseCode = "403", description = "권한 없음"),
-        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
+        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<Void> delete(
+    public ResponseEntity<CommonResponse<Long>> delete(
             @Parameter(description = "질문 ID") @PathVariable Long id,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
@@ -110,6 +118,6 @@ public class QuestionController {
         questionService.deleteQuestion(id, customPrincipal.getUserId());
         log.info("질문 삭제 완료 - questionId: {}, userId: {}", id, customPrincipal.getUserId());
         log.debug("delete() 반환 - void");
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(CommonResponse.success(ResponseCode.NO_CONTENT, id));
     }
 }
