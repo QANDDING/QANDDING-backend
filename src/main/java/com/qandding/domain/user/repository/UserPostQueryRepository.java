@@ -1,20 +1,51 @@
 package com.qandding.domain.user.repository;
 
+import com.qandding.domain.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import com.qandding.domain.answer.entity.AnswerPost;
-import com.qandding.domain.question.entity.QuestionPost;
+import java.time.LocalDateTime;
 
-public interface UserPostQueryRepository {
-    
-    /**
-     * 사용자가 작성한 질문글을 페이징하여 조회
-     */
-    Page<QuestionPost> findQuestionPostsByUserId(Long userId, Pageable pageable);
-    
-    /**
-     * 사용자가 작성한 답변글을 페이징하여 조회
-     */
-    Page<AnswerPost> findAnswerPostsByUserId(Long userId, Pageable pageable);
+public interface UserPostQueryRepository extends JpaRepository<User, Long> {
+
+    // Native Query 결과를 매핑할 Projection 인터페이스 정의
+    interface UnifiedPostProjection {
+        String getPostType();
+        Long getPostId();
+        String getTitle();
+        LocalDateTime getCreatedAt();
+        Long getOriginalQuestionId();
+    }
+
+    // Native Query를 사용하여 질문과 답변을 통합 조회
+    @Query(value = """
+        (SELECT 
+            'QUESTION' as postType, 
+            q.question_post_id as postId, 
+            q.title as title, 
+            q.created_at as createdAt, 
+            NULL as originalQuestionId 
+        FROM question_post q 
+        WHERE q.user_id = :userId) 
+        UNION ALL 
+        (SELECT 
+            'ANSWER' as postType, 
+            a.answer_post_id as postId, 
+            a.title as title, 
+            a.created_at as createdAt, 
+            a.question_post_id as originalQuestionId 
+        FROM answer_post a 
+        WHERE a.user_id = :userId) 
+        ORDER BY createdAt DESC""",
+        countQuery = """
+        SELECT COUNT(*) FROM (
+            (SELECT q.question_post_id FROM question_post q WHERE q.user_id = :userId) 
+            UNION ALL 
+            (SELECT a.answer_post_id FROM answer_post a WHERE a.user_id = :userId)
+        ) as combined_posts""",
+        nativeQuery = true)
+    Page<UnifiedPostProjection> findUnifiedPostsByUserId(@Param("userId") Long userId, Pageable pageable);
 }

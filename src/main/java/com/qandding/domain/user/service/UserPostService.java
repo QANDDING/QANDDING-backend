@@ -1,18 +1,16 @@
 package com.qandding.domain.user.service;
 
+import com.qandding.domain.user.dto.UserPostDtos;
+import com.qandding.domain.user.repository.UserPostQueryRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.qandding.domain.answer.entity.AnswerPost;
-import com.qandding.domain.question.entity.QuestionPost;
-import com.qandding.domain.user.dto.UserPostDtos;
-import com.qandding.domain.user.repository.UserPostQueryRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -24,48 +22,40 @@ public class UserPostService {
 
     /**
      * 사용자가 작성한 질문글과 답변글을 페이징하여 조회
-     * 
+     *
      * @param userId 사용자 ID
      * @param page 페이지 번호 (0부터 시작)
-     * @param size 페이지 크기
+     * @param size 페이지 크기 (컨트롤러에서 10으로 고정)
      * @return 사용자가 작성한 글 목록
      */
     public UserPostDtos.UserPostsResponse getUserPosts(Long userId, int page, int size) {
-        log.info("사용자 글 조회 요청 - userId: {}, page: {}, size: {}", userId, page, size);
-        
-        // 페이지 크기를 10개로 고정
-        int fixedSize = 10;
-        Pageable pageable = PageRequest.of(page, fixedSize);
-        
-        // 질문글과 답변글을 병렬로 조회
-        Page<QuestionPost> questionPage = userPostQueryRepository.findQuestionPostsByUserId(userId, pageable);
-        Page<AnswerPost> answerPage = userPostQueryRepository.findAnswerPostsByUserId(userId, pageable);
-        
-        // DTO 변환
-        var questionDtos = questionPage.getContent().stream()
-                .map(UserPostDtos.QuestionPostDto::new)
-                .toList();
-        
-        var answerDtos = answerPage.getContent().stream()
-                .map(UserPostDtos.AnswerPostDto::new)
-                .toList();
-        
-        // 전체 페이지 수 계산 (질문글과 답변글 중 더 큰 값 사용)
-        int totalPages = Math.max(questionPage.getTotalPages(), answerPage.getTotalPages());
-        
+        log.info("사용자 통합 글 조회 요청 - userId: {}, page: {}, size: {}", userId, page, size);
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        // 통합된 글 목록을 Repository에서 조회
+        Page<UserPostQueryRepository.UnifiedPostProjection> postPage = userPostQueryRepository.findUnifiedPostsByUserId(userId, pageable);
+
+        // Projection을 DTO로 변환 (생성자 사용)
+        var unifiedPostDtos = postPage.getContent().stream()
+                .map(p -> new UserPostDtos.UnifiedPostDto(
+                        p.getPostType(),
+                        p.getPostId(),
+                        p.getTitle(),
+                        p.getCreatedAt(),
+                        p.getOriginalQuestionId()))
+                .collect(Collectors.toList());
+
         var response = new UserPostDtos.UserPostsResponse(
-                questionDtos,
-                answerDtos,
-                page,
-                fixedSize,
-                questionPage.getTotalElements(),
-                answerPage.getTotalElements(),
-                totalPages
+                unifiedPostDtos,
+                postPage.getNumber(),
+                postPage.getSize(),
+                postPage.getTotalElements(),
+                postPage.getTotalPages()
         );
-        
-        log.info("사용자 글 조회 완료 - userId: {}, 질문글: {}개, 답변글: {}개", 
-                userId, questionDtos.size(), answerDtos.size());
-        
+
+        log.info("사용자 통합 글 조회 완료 - userId: {}, 조회된 글: {}개", userId, unifiedPostDtos.size());
+
         return response;
     }
 }
