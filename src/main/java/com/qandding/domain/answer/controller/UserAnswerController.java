@@ -48,9 +48,9 @@ public class UserAnswerController {
     ) {
         log.info("사용자 답변 생성 요청 - userId: {}, questionPostId: {}, title: {}",
                 customPrincipal.getUserId(), questionPostId, title);
-        
+
         Long userAnswerId = userAnswerService.createUserAnswerWithFiles(questionPostId, title, content, files, customPrincipal.getUserId());
-        
+
         log.info("사용자 답변 생성 완료 - answerId: {}, userId: {}", userAnswerId, customPrincipal.getUserId());
         return ResponseEntity.ok(userAnswerId);
     }

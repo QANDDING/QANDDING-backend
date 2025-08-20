@@ -14,13 +14,22 @@ public class WebCorsConfig {
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
 
-    // ⚠️ 모든 출처(Origin)를 허용합니다. (보안에 매우 취약)
-    config.addAllowedOriginPattern("*");
+    // 허용할 출처(Origin) 목록을 명시적으로 지정합니다.
+    config.setAllowedOrigins(List.of(
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173"
+            // TODO: 추후 배포 시 실제 프론트엔드 도메인을 추가해야 합니다.
+    ));
 
-    // 모든 HTTP Method(GET, POST 등)를 허용합니다.
-    config.setAllowedMethods(List.of("*"));
+    // addAllowedOriginPattern("*") 와 setAllowCredentials(true)는 함께 사용될 수 없습니다.
+    // config.addAllowedOriginPattern("*");
 
-    // 모든 HTTP Header를 허용합니다.
+    // 허용할 HTTP Method를 명시합니다.
+    config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+    // 허용할 HTTP Header를 명시합니다.
     config.setAllowedHeaders(List.of("*"));
 
     // 자격 증명(쿠키, 인증 헤더 등)을 허용합니다.

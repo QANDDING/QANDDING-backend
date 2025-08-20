@@ -22,18 +22,15 @@ public class AnswerSelectionService {
         AnswerPost answer = answerPostRepository.findById(answerPostId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ANSWER_NOT_FOUND));
 
-        // Only question owner can adopt
         Long ownerId = answer.getQuestionPost().getUser().getId();
         if (!ownerId.equals(requesterUserId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
         }
 
-        // AI answers cannot be adopted
         if (answer.getAiAnswer() != null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
 
-        // Ensure single selection per question: replace existing if different
         var existing = answerSelectionRepository.findByQuestionPost(answer.getQuestionPost());
         existing.ifPresent(answerSelectionRepository::delete);
 
@@ -46,12 +43,10 @@ public class AnswerSelectionService {
     public void unadopt(Long questionPostId, Long requesterUserId) {
         var selectionOpt = answerSelectionRepository.findByQuestionPost_Id(questionPostId);
         if (selectionOpt.isEmpty()) {
-            // Nothing to do
             return;
         }
         var sel = selectionOpt.get();
 
-        // Only question owner can unadopt
         Long ownerId = sel.getQuestionPost().getUser().getId();
         if (!ownerId.equals(requesterUserId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
