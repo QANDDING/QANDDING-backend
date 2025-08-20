@@ -5,7 +5,11 @@ import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.domain.user.service.UserService;
 import com.qandding.domain.user.service.UserPostService;
 import com.qandding.domain.user.dto.UserPostDtos;
+import com.qandding.global.common.response.CommonResponse;
+import com.qandding.global.common.response.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -57,10 +61,17 @@ public class UserController {
 
     @DeleteMapping("/me")
     @Operation(summary = "회원 탈퇴", description = "현재 로그인된 사용자를 탈퇴 처리합니다.")
-    public ResponseEntity<Void> withdraw(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "회원 탈퇴 성공",
+                content = @Content(mediaType = "application/json",
+                        schema = @Schema(implementation = CommonResponse.class))),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<CommonResponse<Long>> withdraw(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
         log.info("회원 탈퇴 요청 - userId: {}", customPrincipal.getUserId());
         userService.delete(customPrincipal.getUserId());
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(CommonResponse.success(ResponseCode.NO_CONTENT, customPrincipal.getUserId()));
     }
 
     @GetMapping("/posts")
