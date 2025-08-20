@@ -46,12 +46,14 @@ public class UserAnswerController {
             @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
+        log.debug("create() 호출됨 - questionPostId: {}, title: {}, userId: {}", questionPostId, title, customPrincipal.getUserId());
         log.info("사용자 답변 생성 요청 - userId: {}, questionPostId: {}, title: {}",
                 customPrincipal.getUserId(), questionPostId, title);
 
         Long userAnswerId = userAnswerService.createUserAnswerWithFiles(questionPostId, title, content, files, customPrincipal.getUserId());
 
         log.info("사용자 답변 생성 완료 - answerId: {}, userId: {}", userAnswerId, customPrincipal.getUserId());
+        log.debug("create() 반환 - userAnswerId: {}", userAnswerId);
         return ResponseEntity.ok(userAnswerId);
     }
 
@@ -62,9 +64,11 @@ public class UserAnswerController {
         @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
     public ResponseEntity<UserAnswerDtos.Detail> get(@Parameter(description = "답변 ID") @PathVariable Long id) {
+        log.debug("get() 호출됨 - id: {}", id);
         // 이 API는 인증이 필요 없도록 설계 (누구나 답변 상세 내용을 볼 수 있음)
         log.info("Fetching user answer with id: {}", id);
         UserAnswerDtos.Detail detail = userAnswerService.getUserAnswerDetail(id);
+        log.debug("get() 반환 - userAnswerId: {}", detail.getAnswerId());
         return ResponseEntity.ok(detail);
     }
 
@@ -80,9 +84,11 @@ public class UserAnswerController {
             @Parameter(description = "답변 ID") @PathVariable Long id,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
+        log.debug("delete() 호출됨 - id: {}, userId: {}", id, customPrincipal.getUserId());
         log.info("사용자 답변 삭제 요청 - answerId: {}, userId: {}", id, customPrincipal.getUserId());
         userAnswerService.deleteUserAnswer(id, customPrincipal.getUserId());
         log.info("사용자 답변 삭제 완료 - answerId: {}, userId: {}", id, customPrincipal.getUserId());
+        log.debug("delete() 반환 - void");
         return ResponseEntity.noContent().build();
     }
 }

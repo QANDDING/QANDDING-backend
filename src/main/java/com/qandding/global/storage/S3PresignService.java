@@ -12,10 +12,15 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
-import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+
+import java.net.MalformedURLException;
+import java.net.URL;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class S3PresignService {
 	@Value("${app.s3.bucket}")
 	private String bucket;
@@ -31,6 +36,7 @@ public class S3PresignService {
     private String secretAccessKey;
 
     public String presignPutUrl(String objectKey) {
+        log.debug("presignPutUrl() 호출됨 - objectKey: {}", objectKey);
 		Region r = Region.of(region);
             try (S3Presigner presigner = S3Presigner.builder()
                     .region(r)
@@ -47,11 +53,14 @@ public class S3PresignService {
 				.signatureDuration(Duration.ofSeconds(expireSeconds))
 				.putObjectRequest(putObjectRequest)
 			);
-			return presigned.url().toString();
+            String presignedUrl = presigned.url().toString();
+            log.debug("presignPutUrl() 반환 - presignedUrl: {}", presignedUrl);
+			return presignedUrl;
         }
     }
 
     public String presignGetUrl(String objectKey) {
+        log.debug("presignGetUrl() 호출됨 - objectKey: {}", objectKey);
         Region r = Region.of(region);
         try (S3Presigner presigner = S3Presigner.builder()
                 .region(r)
@@ -68,26 +77,35 @@ public class S3PresignService {
                     .signatureDuration(Duration.ofSeconds(expireSeconds))
                     .getObjectRequest(getObjectRequest)
             );
-            return presigned.url().toString();
+            String presignedUrl = presigned.url().toString();
+            log.debug("presignGetUrl() 반환 - presignedUrl: {}", presignedUrl);
+            return presignedUrl;
         }
     }
 
     public String presignGetUrlByUrl(String url) {
+        log.debug("presignGetUrlByUrl() 호출됨 - url: {}", url);
         String key = extractObjectKey(url);
+        log.debug("추출된 objectKey: {}", key);
         return presignGetUrl(key);
     }
 
     private String extractObjectKey(String url) {
-        String prefix = "https://" + bucket + ".s3." + region + ".amazonaws.com/";
-        if (url == null) return "";
-        if (url.startsWith(prefix)) {
-            return url.substring(prefix.length());
+        if (url == null) {
+            return "";
         }
-        // If a full URL in another style or already a key, return as-is best effort
-        int idx = url.indexOf("amazonaws.com/");
-        if (idx > 0) {
-            return url.substring(idx + "amazonaws.com/".length());
+        try {
+            URL urlObject = new URL(url);
+            String path = urlObject.getPath();
+            // Remove the leading slash
+            if (path.startsWith("/")) {
+                return path.substring(1);
+            }
+            return path;
+        } catch (MalformedURLException e) {
+            // If it's not a valid URL, assume it's already a key.
+            log.warn("Invalid URL format, assuming it's an object key: {}", url, e);
+            return url;
         }
-        return url;
     }
 }

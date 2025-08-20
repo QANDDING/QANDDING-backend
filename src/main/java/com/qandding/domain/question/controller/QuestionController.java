@@ -53,10 +53,12 @@ public class QuestionController {
             @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) throws IOException {
+        log.debug("create() 호출됨 - title: {}, subjectId: {}, professorId: {}, userId: {}", title, subjectId, professorId, customPrincipal.getUserId());
         // 인증 확인 및 예외 처리 로직 제거 -> 스프링 시큐리티와 @RestControllerAdvice가 담당
         log.info("질문 생성 요청 - userId: {}, title: {}", customPrincipal.getUserId(), title);
         Long questionId = questionService.createQuestionWithFiles(title, content, subjectId, professorId, files, customPrincipal.getUserId());
         log.info("질문 생성 완료 - questionId: {}, userId: {}", questionId, customPrincipal.getUserId());
+        log.debug("create() 반환 - questionId: {}", questionId);
         return ResponseEntity.ok(questionId);
     }
 
@@ -69,9 +71,11 @@ public class QuestionController {
             @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size
     ) {
+        log.debug("list() 호출됨 - subjectId: {}, professorId: {}, page: {}, size: {}", subjectId, professorId, page, size);
         // 이 API는 인증이 필요 없으므로 @AuthenticationPrincipal을 받지 않음 (의도된 설계)
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         var res = questionQueryRepository.findSummaries(subjectId, professorId, pageable);
+        log.debug("list() 반환 - PageResponse: {}개 항목", res.getTotalElements());
         return ResponseEntity.ok(PageResponse.of(res));
     }
 
@@ -81,8 +85,11 @@ public class QuestionController {
     @Operation(summary = "질문 상세 조회", description = "특정 질문의 상세 정보를 조회합니다.")
     // ... (@ApiResponses는 기존과 동일하게 유지)
     public ResponseEntity<QuestionDtos.Detail> get(@Parameter(description = "질문 ID") @PathVariable Long id) {
+        log.debug("get() 호출됨 - id: {}", id);
         // 이 API는 인증이 필요 없으므로 @AuthenticationPrincipal을 받지 않음 (의도된 설계)
-        return ResponseEntity.ok(questionService.getQuestionDetail(id));
+        QuestionDtos.Detail questionDetail = questionService.getQuestionDetail(id);
+        log.debug("get() 반환 - questionId: {}", questionDetail.getQuestionId());
+        return ResponseEntity.ok(questionDetail);
     }
 
     @DeleteMapping("/{id}")
@@ -97,10 +104,12 @@ public class QuestionController {
             @Parameter(description = "질문 ID") @PathVariable Long id,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
+        log.debug("delete() 호출됨 - id: {}, userId: {}", id, customPrincipal.getUserId());
         // 인증 확인 및 예외 처리 로직 제거
         log.info("질문 삭제 요청 - questionId: {}, userId: {}", id, customPrincipal.getUserId());
         questionService.deleteQuestion(id, customPrincipal.getUserId());
         log.info("질문 삭제 완료 - questionId: {}, userId: {}", id, customPrincipal.getUserId());
+        log.debug("delete() 반환 - void");
         return ResponseEntity.noContent().build();
     }
 }

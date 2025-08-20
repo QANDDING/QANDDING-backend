@@ -16,8 +16,10 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
+import lombok.extern.slf4j.Slf4j;
 
 @Repository
+@Slf4j
 public class QuestionQueryRepository {
 	private final JPAQueryFactory query;
 
@@ -26,12 +28,14 @@ public class QuestionQueryRepository {
 	}
 
 	public Page<QuestionDtos.Summary> findSummaries(Long subjectId, Long professorId, Pageable pageable) {
+		log.debug("findSummaries() 호출됨 - subjectId: {}, professorId: {}, pageable: {}", subjectId, professorId, pageable);
 		// 1. 전체 개수 조회 (별도 쿼리)
 		long total = query
 			.from(questionPost)
 			.where(subjectId != null ? questionPost.subject.id.eq(subjectId) : null,
 				   professorId != null ? questionPost.professor.id.eq(professorId) : null)
 			.fetchCount();
+		log.debug("전체 개수 조회 결과: {}", total);
 
 		// 2. 페이징된 데이터 조회 (완전히 별도 쿼리)
 		var selectQuery = query
@@ -65,6 +69,7 @@ public class QuestionQueryRepository {
 		if (pageable.getSort().isSorted()) {
 			Sort.Order order = pageable.getSort().iterator().next();
 			String property = order.getProperty();
+			log.debug("정렬 적용 - property: {}, direction: {}", property, order.getDirection());
 			
 			// 유효한 정렬 필드인지 확인하고 적용
 			if ("id".equals(property)) {
@@ -75,20 +80,26 @@ public class QuestionQueryRepository {
 				selectQuery.orderBy(order.isAscending() ? questionPost.createdAt.asc() : questionPost.createdAt.desc());
 			} else {
 				// 기본 정렬: id 내림차순
+				log.debug("지원하지 않는 정렬 필드 '{}'이므로 기본 정렬(id desc)을 적용합니다.", property);
 				selectQuery.orderBy(questionPost.id.desc());
 			}
 		} else {
 			// 정렬이 없으면 기본값: id 내림차순
+			log.debug("정렬 조건이 없으므로 기본 정렬(id desc)을 적용합니다.");
 			selectQuery.orderBy(questionPost.id.desc());
 		}
 
 		List<QuestionDtos.Summary> content = selectQuery.fetch();
+		log.debug("조회된 데이터 {}건", content.size());
 
-		return new PageImpl<>(content, pageable, total);
+		Page<QuestionDtos.Summary> pageResult = new PageImpl<>(content, pageable, total);
+		log.debug("findSummaries() 반환 - Page: {}/{} (총 {}개)", pageResult.getNumber(), pageResult.getTotalPages(), pageResult.getTotalElements());
+		return pageResult;
 	}
 
 	public QuestionDtos.Detail findDetailById(Long id) {
-		return query
+		log.debug("findDetailById() 호출됨 - id: {}", id);
+		QuestionDtos.Detail result = query
 			.select(Projections.constructor(QuestionDtos.Detail.class,
 				questionPost.id,
 				questionPost.title,
@@ -104,5 +115,6 @@ public class QuestionQueryRepository {
 			.leftJoin(questionPost.professor, professor)
 			.where(questionPost.id.eq(id))
 			.fetchOne();
+		log.debug("findDetailById() 반환 - result: {}", result != null ? "found" : "not found");
+		return result;
 	}
-}

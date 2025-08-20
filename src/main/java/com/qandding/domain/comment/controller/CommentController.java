@@ -40,9 +40,11 @@ public class CommentController {
             @Parameter(description = "첨부 파일 목록") @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
+        log.debug("create() 호출됨 - answerPostId: {}, userId: {}", answerPostId, customPrincipal.getUserId());
         log.info("Creating comment for answer: {}, user: {}", answerPostId, customPrincipal.getUserId());
         Long commentId = commentService.createCommentWithFiles(answerPostId, content, files, customPrincipal.getUserId());
         log.info("댓글 생성 완료 - commentId: {}, userId: {}", commentId, customPrincipal.getUserId());
+        log.debug("create() 반환 - commentId: {}", commentId);
         return ResponseEntity.ok(commentId);
     }
 
@@ -86,7 +88,9 @@ public class CommentController {
             @Parameter(description = "답변 ID") @RequestParam Long answerPostId,
             @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "페이지 크기") @RequestParam(defaultValue = "10") int size) {
+        log.debug("list() 호출됨 - answerPostId: {}, page: {}, size: {}", answerPostId, page, size);
         var threads = commentService.listThreads(answerPostId, page, size);
+        log.debug("list() 반환 - PageResponse: {}개 항목", threads.getTotalElements());
         return ResponseEntity.ok(PageResponse.of(threads));
     }
 
@@ -99,9 +103,11 @@ public class CommentController {
             @Parameter(description = "첨부 파일 목록") @RequestPart(value = "files", required = false) List<MultipartFile> files,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
+        log.debug("reply() 호출됨 - parentCommentId: {}, userId: {}", parentCommentId, customPrincipal.getUserId());
         log.info("Creating reply for comment: {}, user: {}", parentCommentId, customPrincipal.getUserId());
         Long id = commentService.createReplyWithFiles(parentCommentId, content, files, customPrincipal.getUserId());
         log.info("대댓글 생성 완료 - commentId: {}, userId: {}", id, customPrincipal.getUserId());
+        log.debug("reply() 반환 - commentId: {}", id);
         return ResponseEntity.ok(id);
     }
 
@@ -111,9 +117,11 @@ public class CommentController {
     public ResponseEntity<Void> delete(
             @Parameter(description = "댓글 ID") @PathVariable Long id,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
+        log.debug("delete() 호출됨 - id: {}, userId: {}", id, customPrincipal.getUserId());
         log.info("Attempting to delete comment with id: {}, user: {}", id, customPrincipal.getUserId());
         commentService.deleteComment(id, customPrincipal.getUserId());
         log.info("댓글 삭제 완료 - commentId: {}, userId: {}", id, customPrincipal.getUserId());
+        log.debug("delete() 반환 - void");
         return ResponseEntity.noContent().build();
     }
 }

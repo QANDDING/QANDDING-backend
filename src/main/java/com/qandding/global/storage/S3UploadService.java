@@ -35,12 +35,23 @@ public class S3UploadService {
     
     @Value("${app.s3.secret-key}")
     private String secretAccessKey;
+
+    @PostConstruct
+    public void init() {
+        log.debug("S3UploadService init()");
+        log.debug("s3.bucket: {}", bucket);
+        log.debug("s3.region: {}", region);
+        log.debug("s3.upload-prefix: {}", uploadPrefix);
+        // Do not log access keys for security reasons
+    }
     
     /**
      * 이미지를 S3에 업로드하고 URL을 반환
      */
     public String uploadImage(MultipartFile file) throws IOException {
+        log.debug("uploadImage() 호출됨 - fileName: {}", file.getOriginalFilename());
         if (file.isEmpty()) {
+            log.warn("업로드할 파일이 없습니다.");
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
         }
         
@@ -54,13 +65,16 @@ public class S3UploadService {
         // 파일 확장자 검증
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
+        log.debug("파일 확장자: {}", extension);
         if (!isValidImageExtension(extension)) {
+            log.warn("지원하지 않는 이미지 형식입니다: {}", extension);
             throw new IllegalArgumentException("지원하지 않는 이미지 형식입니다: " + extension);
         }
         
         // 고유한 파일명 생성
         String fileName = generateUniqueFileName(extension);
         String objectKey = uploadPrefix + fileName;
+        log.debug("생성된 S3 objectKey: {}", objectKey);
         
         log.info("S3에 이미지 업로드 시작: bucket={}, key={}, size={}", bucket, objectKey, file.getSize());
         
@@ -76,13 +90,15 @@ public class S3UploadService {
                     .key(objectKey)
                     .contentType(file.getContentType())
                     .build();
+            log.debug("PutObjectRequest 생성 완료");
             
             PutObjectResponse response = s3Client.putObject(putObjectRequest, 
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+            log.debug("S3 putObject 완료 - eTag: {}", response.eTag());
             
             String imageUrl = generateImageUrl(objectKey);
             log.info("S3 이미지 업로드 완료: key={}, url={}", objectKey, imageUrl);
-            
+            log.debug("uploadImage() 반환 - imageUrl: {}", imageUrl);
             return imageUrl;
             
         } catch (Exception e) {
@@ -95,7 +111,9 @@ public class S3UploadService {
      * 이미지 또는 PDF 등 일반 파일 업로드 (확장자 검증 포함)
      */
     public String uploadFile(MultipartFile file) throws IOException {
+        log.debug("uploadFile() 호출됨 - fileName: {}", file.getOriginalFilename());
         if (file.isEmpty()) {
+            log.warn("업로드할 파일이 없습니다.");
             throw new IllegalArgumentException("업로드할 파일이 없습니다.");
         }
 
@@ -107,12 +125,15 @@ public class S3UploadService {
 
         String originalFilename = file.getOriginalFilename();
         String extension = getFileExtension(originalFilename);
+        log.debug("파일 확장자: {}", extension);
         if (!isValidFileExtension(extension)) {
+            log.warn("지원하지 않는 파일 형식입니다: {}", extension);
             throw new IllegalArgumentException("지원하지 않는 파일 형식입니다: " + extension);
         }
 
         String fileName = generateUniqueFileName(extension);
         String objectKey = uploadPrefix + fileName;
+        log.debug("생성된 S3 objectKey: {}", objectKey);
 
         log.info("S3에 파일 업로드 시작: bucket={}, key={}, size={}", bucket, objectKey, file.getSize());
 
@@ -128,11 +149,14 @@ public class S3UploadService {
                     .key(objectKey)
                     .contentType(file.getContentType())
                     .build();
+            log.debug("PutObjectRequest 생성 완료");
 
             s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+            log.debug("S3 putObject 완료");
 
             String url = generateImageUrl(objectKey);
             log.info("S3 파일 업로드 완료: key={}, url={}", objectKey, url);
+            log.debug("uploadFile() 반환 - url: {}", url);
             return url;
 
         } catch (Exception e) {
