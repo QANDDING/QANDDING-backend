@@ -11,7 +11,7 @@ import java.util.List;
 @Configuration
 public class WebCorsConfig {
 
-  @Value("${app.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}")
+  @Value("${app.cors.allowed-origins:https://qandding-frontend.vercel.app,https://qandding.store,https://www.qandding.store,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}")
   private String allowedOrigins;
 
   @Value("${app.cors.allowed-methods:GET,POST,PUT,DELETE,PATCH,OPTIONS}")
