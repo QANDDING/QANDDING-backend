@@ -88,7 +88,7 @@ public class QuestionController {
         log.debug("get() 호출됨 - id: {}", id);
         // 이 API는 인증이 필요 없으므로 @AuthenticationPrincipal을 받지 않음 (의도된 설계)
         QuestionDtos.Detail questionDetail = questionService.getQuestionDetail(id);
-        log.debug("get() 반환 - questionId: {}", questionDetail.getQuestionId());
+        log.debug("get() 반환 - questionId: {}", questionDetail.getId());
         return ResponseEntity.ok(questionDetail);
     }
 

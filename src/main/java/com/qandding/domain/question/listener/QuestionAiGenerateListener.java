@@ -130,6 +130,7 @@ public class QuestionAiGenerateListener {
             }
         }
         log.debug("onQuestionCreated() 종료 - questionPostId: {}", event.questionPostId());
+    }
 
     private String buildPrompt(String title, String content) {
         StringBuilder sb = new StringBuilder();

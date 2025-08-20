@@ -195,7 +195,7 @@ public class QuestionService {
         QuestionDtos.Detail detailDto = new QuestionDtos.Detail(q.getId(), q.getTitle(), q.getContent(),
                 q.getUser().getNickname(), q.getSubject().getName(),
                 q.getProfessor().getName(), q.getCreatedAt(), images);
-        log.debug("getQuestionDetail() 반환 - questionId: {}", detailDto.getQuestionId());
+        log.debug("getQuestionDetail() 반환 - questionId: {}", detailDto.getId());
         return detailDto;
     }
 

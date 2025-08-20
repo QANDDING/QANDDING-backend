@@ -170,7 +170,7 @@ public class UserAnswerService {
         UserAnswerDtos.Detail detailDto = new UserAnswerDtos.Detail(
                 answer.getId(), answer.getTitle(), answer.getContent(), answer.getUser().getNickname(), answer.getCreatedAt(), imageUrls
         );
-        log.debug("getUserAnswerDetail() 반환 - userAnswerId: {}", detailDto.getAnswerId());
+        log.debug("getUserAnswerDetail() 반환 - userAnswerId: {}", detailDto.getId());
         return detailDto;
     }
 }

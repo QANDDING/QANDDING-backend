@@ -118,3 +118,4 @@ public class QuestionQueryRepository {
 		log.debug("findDetailById() 반환 - result: {}", result != null ? "found" : "not found");
 		return result;
 	}
+}

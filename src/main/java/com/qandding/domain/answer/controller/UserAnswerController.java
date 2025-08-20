@@ -68,7 +68,7 @@ public class UserAnswerController {
         // 이 API는 인증이 필요 없도록 설계 (누구나 답변 상세 내용을 볼 수 있음)
         log.info("Fetching user answer with id: {}", id);
         UserAnswerDtos.Detail detail = userAnswerService.getUserAnswerDetail(id);
-        log.debug("get() 반환 - userAnswerId: {}", detail.getAnswerId());
+        log.debug("get() 반환 - userAnswerId: {}", detail.getId());
         return ResponseEntity.ok(detail);
     }
 
