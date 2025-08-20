@@ -6,6 +6,10 @@ import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.global.common.paging.PageResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -42,9 +46,42 @@ public class CommentController {
         return ResponseEntity.ok(commentId);
     }
 
-    @GetMapping
+        @GetMapping
     @Operation(summary = "댓글 목록 조회", description = "특정 답변의 댓글(대댓글 포함)을 스레드 형태로 페이징 조회합니다.")
-    // ... @ApiResponses ...
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "조회 성공",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = PageResponse.class),
+                examples = @ExampleObject(value = """
+                    {
+                      "content": [
+                        {
+                          "parent": {
+                            "id": 1,
+                            "nickname": "parent_user",
+                            "content": "이것은 부모 댓글입니다.",
+                            "createdAt": "2025-08-21T10:00:00Z",
+                            "imageUrls": []
+                          },
+                          "replies": [
+                            {
+                              "id": 2,
+                              "nickname": "reply_user",
+                              "content": "이것은 대댓글입니다.",
+                              "createdAt": "2025-08-21T10:05:00Z",
+                              "imageUrls": []
+                            }
+                          ]
+                        }
+                      ],
+                      "page": 0,
+                      "size": 10,
+                      "totalElements": 1,
+                      "totalPages": 1,
+                      "last": true
+                    }
+                    """)))
+    })
     public ResponseEntity<PageResponse<CommentDtos.Thread>> list(
             @Parameter(description = "답변 ID") @RequestParam Long answerPostId,
             @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
