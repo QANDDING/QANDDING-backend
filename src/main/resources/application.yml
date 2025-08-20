@@ -22,7 +22,7 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid, email, profile
-            redirect-uri: 'https://qandding.store/login/oauth2/code/google'
+            redirect-uri: 'https://qandding-frontend.vercel.app/login/oauth2/code/google'
         provider:
           google:
             issuer-uri: https://accounts.google.com
@@ -44,7 +44,7 @@ app:
     url-expire-seconds: ${APP_S3_URL_EXPIRE_SECONDS}
     upload-prefix: ${APP_S3_UPLOAD_PREFIX}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://qandding.store,https://www.qandding.store}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,https://qandding.store,https://www.qandding.store,https://qandding-frontend.vercel.app}
     allowed-methods: ${APP_CORS_ALLOWED_METHODS:GET,POST,PUT,DELETE,PATCH,OPTIONS}
     allowed-headers: ${APP_CORS_ALLOWED_HEADERS:*}
     exposed-headers: ${APP_CORS_EXPOSED_HEADERS:}
