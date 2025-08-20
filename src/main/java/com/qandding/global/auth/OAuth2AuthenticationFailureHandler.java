@@ -39,7 +39,7 @@ public class OAuth2AuthenticationFailureHandler implements AuthenticationFailure
         if (exception instanceof OAuth2AuthenticationException) {
             OAuth2AuthenticationException oauthException = (OAuth2AuthenticationException) exception;
             log.error("OAuth2 예외 상세: {}", oauthException.getError());
-            log.error("OAuth2 예외 설명: {}", oauthException.getDescription());
+            log.error("OAuth2 예외 메시지: {}", oauthException.getMessage());
         }
         
         // 스택 트레이스 로깅
