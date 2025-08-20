@@ -58,6 +58,10 @@ public class User extends BaseTimeEntity {
 		this.emailVerified = true;
 	}
 
+	public boolean isEmailVerified() {
+		return this.emailVerified;
+	}
+
 	public void updateProfile(String nickname, String grade, String major) {
 		if (nickname == null || nickname.isBlank()) throw new IllegalArgumentException("nickname");
 		if (grade == null || grade.isBlank()) throw new IllegalArgumentException("grade");
