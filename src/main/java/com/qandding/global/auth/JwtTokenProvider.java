@@ -4,6 +4,9 @@ import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.repository.UserRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +18,9 @@ import java.util.Map;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${app.jwt.secret:qandding-secret-key-2024}")
+    private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
+
+    @Value("${app.jwt.secret}")
     private String jwtSecret;
 
     @Value("${app.jwt.access-expiration:900000}") // 15분 (밀리초)
@@ -110,8 +115,35 @@ public class JwtTokenProvider {
                     .parseClaimsJws(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
+            log.error("Token validation failed: {}", e.getMessage());
             return false;
         }
     }
 
     public boolean isTokenExpired(String token) {
+        try {
+            Claims claims = getClaimsFromToken(token);
+            return claims.getExpiration().before(new Date());
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    public boolean isAccessToken(String token) {
+        try {
+            String tokenType = getTokenTypeFromToken(token);
+            return "ACCESS".equals(tokenType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean isRefreshToken(String token) {
+        try {
+            String tokenType = getTokenTypeFromToken(token);
+            return "REFRESH".equals(tokenType);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}

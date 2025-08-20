@@ -20,11 +20,18 @@ public class AuthController {
     private final TokenService tokenService;
 
     @PostMapping("/refresh")
-    @Operation(summary = "Access Token 재발급", description = "유효한 Refresh Token으로 새로운 Access Token을 발급받습니다.")
-    public ResponseEntity<String> refreshToken(@RequestBody RefreshTokenRequest request) {
+    @Operation(summary = "Access Token 재발급", description = "유효한 Refresh Token으로 새로운 Access Token과 Refresh Token을 발급받습니다.")
+    public ResponseEntity<TokenRefreshResponse> refreshToken(@RequestBody RefreshTokenRequest request) {
         log.info("Access Token 재발급 요청");
-        String newAccessToken = tokenService.refreshAccessToken(request.refreshToken());
-        return ResponseEntity.ok(newAccessToken);
+        TokenService.TokenPair tokenPair = tokenService.refreshAccessToken(request.refreshToken());
+        
+        TokenRefreshResponse response = new TokenRefreshResponse(
+            tokenPair.getAccessToken(),
+            tokenPair.getRefreshToken(),
+            "토큰이 성공적으로 재발급되었습니다."
+        );
+        
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")
@@ -36,6 +43,12 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
     
-    // DTO 정의 (Controller 내부에 Record로 정의하거나 별도 파일로 분리 가능)
+    // DTO 정의
     public record RefreshTokenRequest(String refreshToken) {}
+    
+    public record TokenRefreshResponse(
+        String accessToken,
+        String refreshToken,
+        String message
+    ) {}
 }

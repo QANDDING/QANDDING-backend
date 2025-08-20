@@ -41,7 +41,7 @@ public class TokenService {
         return new TokenPair(accessToken, refreshToken);
     }
 
-    public String refreshAccessToken(String refreshToken) {
+    public TokenPair refreshAccessToken(String refreshToken) {
         try {
             // Refresh Token 검증
             if (!jwtTokenProvider.validateToken(refreshToken)) {
@@ -75,7 +75,7 @@ public class TokenService {
             
             log.info("Access Token 재발급 완료 - userId: {}", user.getId());
             
-            return newAccessToken;
+            return new TokenPair(newAccessToken, newRefreshToken);
             
         } catch (Exception e) {
             log.error("Access Token 재발급 실패: {}", e.getMessage());
