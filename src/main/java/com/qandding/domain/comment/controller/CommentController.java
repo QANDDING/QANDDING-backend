@@ -1,6 +1,8 @@
 package com.qandding.domain.comment.controller;
 
+import com.qandding.domain.comment.dto.CommentCreateRequest;
 import com.qandding.domain.comment.dto.CommentDtos;
+import com.qandding.domain.comment.dto.ReplyCreateRequest;
 import com.qandding.domain.comment.service.CommentService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
 import com.qandding.global.common.paging.PageResponse;
@@ -14,13 +16,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -33,30 +36,35 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-        @Operation(summary = "댓글 생성", description = "텍스트와 파일(이미지/PDF)을 멀티파트로 받아 댓글을 생성합니다.")
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "댓글 생성 (Presigned URL 방식)", description = "S3에 선업로드 후, 파일 URL과 함께 댓글 내용을 JSON으로 받아 생성합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "댓글 생성 성공",
-                content = @Content(mediaType = "application/json",
-                        schema = @Schema(implementation = CommonResponse.class))),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "201", description = "댓글 생성 성공",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = CommonResponse.class),
+                examples = @ExampleObject(value = """
+                    {
+                      "code": "CREATED",
+                      "message": "생성 성공",
+                      "data": 1
+                    }
+                    """))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음"),
-        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
-    // ... @ApiResponses ...
     public ResponseEntity<CommonResponse<Long>> create(
-            @Parameter(description = "답변 ID") @RequestParam("answerPostId") Long answerPostId,
-            @Parameter(description = "댓글 내용") @RequestParam("content") String content,
-            @Parameter(description = "첨부 파일 목록") @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestBody @Valid CommentCreateRequest request,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.debug("create() 호출됨 - answerPostId: {}, userId: {}", answerPostId, customPrincipal.getUserId());
-        log.info("Creating comment for answer: {}, user: {}", answerPostId, customPrincipal.getUserId());
-        Long commentId = commentService.createCommentWithFiles(answerPostId, content, files, customPrincipal.getUserId());
+        log.info("댓글 생성 요청 - userId: {}, answerPostId: {}", customPrincipal.getUserId(), request.getAnswerPostId());
+        Long commentId = commentService.createCommentWithImageUrls(
+            request.getAnswerPostId(),
+            request.getContent(),
+            request.getImageUrls(),
+            customPrincipal.getUserId()
+        );
         log.info("댓글 생성 완료 - commentId: {}, userId: {}", commentId, customPrincipal.getUserId());
-        log.debug("create() 반환 - commentId: {}", commentId);
-        return ResponseEntity.ok(CommonResponse.success(ResponseCode.CREATED, commentId));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(ResponseCode.CREATED, commentId));
     }
 
         @GetMapping
@@ -105,29 +113,35 @@ public class CommentController {
         return ResponseEntity.ok(PageResponse.of(threads));
     }
 
-    @PostMapping(value = "/reply", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "대댓글 생성", description = "특정 댓글에 대한 답글을 생성합니다.")
+    @PostMapping(value = "/reply", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "대댓글 생성 (Presigned URL 방식)", description = "S3에 선업로드 후, 파일 URL과 함께 대댓글 내용을 JSON으로 받아 생성합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "대댓글 생성 성공",
-                content = @Content(mediaType = "application/json",
-                        schema = @Schema(implementation = CommonResponse.class))),
-        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+        @ApiResponse(responseCode = "201", description = "대댓글 생성 성공",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = CommonResponse.class),
+                examples = @ExampleObject(value = """
+                    {
+                      "code": "CREATED",
+                      "message": "생성 성공",
+                      "data": 2
+                    }
+                    """))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "부모 댓글을 찾을 수 없음"),
-        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+        @ApiResponse(responseCode = "404", description = "부모 댓글을 찾을 수 없음")
     })
     public ResponseEntity<CommonResponse<Long>> reply(
-            @Parameter(description = "부모 댓글 ID") @RequestParam("parentCommentId") Long parentCommentId,
-            @Parameter(description = "답글 내용") @RequestParam("content") String content,
-            @Parameter(description = "첨부 파일 목록") @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestBody @Valid ReplyCreateRequest request,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.debug("reply() 호출됨 - parentCommentId: {}, userId: {}", parentCommentId, customPrincipal.getUserId());
-        log.info("Creating reply for comment: {}, user: {}", parentCommentId, customPrincipal.getUserId());
-        Long id = commentService.createReplyWithFiles(parentCommentId, content, files, customPrincipal.getUserId());
+        log.info("대댓글 생성 요청 - userId: {}, parentCommentId: {}", customPrincipal.getUserId(), request.getParentCommentId());
+        Long id = commentService.createReplyWithImageUrls(
+            request.getParentCommentId(),
+            request.getContent(),
+            request.getImageUrls(),
+            customPrincipal.getUserId()
+        );
         log.info("대댓글 생성 완료 - commentId: {}, userId: {}", id, customPrincipal.getUserId());
-        log.debug("reply() 반환 - commentId: {}", id);
-        return ResponseEntity.ok(CommonResponse.success(ResponseCode.CREATED, id));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(ResponseCode.CREATED, id));
     }
 
     @DeleteMapping("/{id}")
@@ -135,7 +149,14 @@ public class CommentController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "댓글 삭제 성공",
                 content = @Content(mediaType = "application/json",
-                        schema = @Schema(implementation = CommonResponse.class))),
+                        schema = @Schema(implementation = CommonResponse.class),
+                        examples = @ExampleObject(value = """
+                            {
+                              "code": "NO_CONTENT",
+                              "message": "성공",
+                              "data": 1
+                            }
+                            """))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
         @ApiResponse(responseCode = "403", description = "권한 없음"),
         @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음"),

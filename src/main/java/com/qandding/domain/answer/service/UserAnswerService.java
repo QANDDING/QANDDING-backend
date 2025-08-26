@@ -131,6 +131,32 @@ public class UserAnswerService {
     }
 
     @Transactional
+    public Long createUserAnswerWithImageUrls(Long questionPostId, String title, String content, List<String> imageUrls, Long userId) {
+        log.debug("createUserAnswerWithImageUrls() 호출됨 - questionPostId: {}, title: {}, userId: {}", questionPostId, title, userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        QuestionPost question = questionPostRepository.findById(questionPostId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
+        log.debug("DB 조회 완료 - user: {}, question: {}", user.getNickname(), question.getTitle());
+
+        UserAnswer userAnswer = userAnswerRepository.save(new UserAnswer(user, question, title, content));
+        log.debug("UserAnswer 저장 완료 - userAnswerId: {}", userAnswer.getId());
+        AnswerPost answerPost = answerPostRepository.save(new AnswerPost(user, question, title, content));
+        log.debug("AnswerPost 저장 완료 - answerPostId: {}", answerPost.getId());
+
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            int i = 0;
+            for (String url : imageUrls) {
+                answerImageRepository.save(new AnswerImage(answerPost, url, i++));
+            }
+            log.debug("이미지 URL {}개 저장 완료", imageUrls.size());
+        }
+
+        log.debug("createUserAnswerWithImageUrls() 반환 - userAnswerId: {}", userAnswer.getId());
+        return userAnswer.getId();
+    }
+
+    @Transactional
     public void deleteUserAnswer(Long userAnswerId, Long userId) {
         log.debug("deleteUserAnswer() 호출됨 - userAnswerId: {}, userId: {}", userAnswerId, userId);
         UserAnswer answer = userAnswerRepository.findById(userAnswerId)
