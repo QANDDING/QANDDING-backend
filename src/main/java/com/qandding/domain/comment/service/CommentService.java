@@ -88,6 +88,30 @@ public class CommentService {
     }
 
     @Transactional
+    public Long createCommentWithImageUrls(Long answerPostId, String content, java.util.List<String> imageUrls, Long userId) {
+        log.debug("createCommentWithImageUrls() 호출됨 - answerPostId: {}, userId: {}", answerPostId, userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        AnswerPost answer = answerPostRepository.findById(answerPostId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ANSWER_NOT_FOUND));
+        log.debug("DB 조회 완료 - user: {}, answer: {}", user.getNickname(), answer.getTitle());
+
+        Comment comment = commentRepository.save(new Comment(answer, user, content));
+        log.debug("Comment 저장 완료 - commentId: {}", comment.getId());
+
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            int i = 0;
+            for (String url : imageUrls) {
+                commentImageRepository.save(new CommentImage(comment, url, i++));
+            }
+            log.debug("이미지 URL {}개 저장 완료", imageUrls.size());
+        }
+        log.debug("createCommentWithImageUrls() 반환 - commentId: {}", comment.getId());
+        return comment.getId();
+    }
+
+    @Transactional
     public Long createReplyWithFiles(Long parentCommentId, String content, java.util.List<MultipartFile> files, Long userId) {
         log.debug("createReplyWithFiles() 호출됨 - parentCommentId: {}, userId: {}", parentCommentId, userId);
         Comment parent = commentRepository.findById(parentCommentId)
@@ -120,6 +144,31 @@ public class CommentService {
             log.debug("파일 {}개 처리 완료", files.size());
         }
         log.debug("createReplyWithFiles() 반환 - replyId: {}", reply.getId());
+        return reply.getId();
+    }
+
+    @Transactional
+    public Long createReplyWithImageUrls(Long parentCommentId, String content, java.util.List<String> imageUrls, Long userId) {
+        log.debug("createReplyWithImageUrls() 호출됨 - parentCommentId: {}, userId: {}", parentCommentId, userId);
+        Comment parent = commentRepository.findById(parentCommentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.COMMENT_NOT_FOUND));
+        log.debug("부모 댓글 조회 완료 - parentCommentId: {}", parent.getId());
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        log.debug("사용자 조회 완료 - userId: {}", user.getId());
+
+        Comment reply = commentRepository.save(new Comment(parent.getAnswerPost(), user, content, parent));
+        log.debug("대댓글 저장 완료 - replyId: {}", reply.getId());
+
+        if (imageUrls != null && !imageUrls.isEmpty()) {
+            int i = 0;
+            for (String url : imageUrls) {
+                commentImageRepository.save(new CommentImage(reply, url, i++));
+            }
+            log.debug("이미지 URL {}개 저장 완료", imageUrls.size());
+        }
+        log.debug("createReplyWithImageUrls() 반환 - replyId: {}", reply.getId());
         return reply.getId();
     }
 

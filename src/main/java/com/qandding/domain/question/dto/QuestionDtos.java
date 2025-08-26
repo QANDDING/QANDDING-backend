@@ -18,10 +18,12 @@ public class QuestionDtos {
 		private final String subjectName;
 		private final String professorName;
 		private final LocalDateTime createdAt;
-		private final boolean hasAdoptedAnswer;
+		private final boolean hasAiAnswer;
+		private final boolean hasMemberAnswer;
+		private final boolean isAdopted;
 
-		public static Summary from(QuestionPost q, boolean hasAdoptedAnswer) {
-			return new Summary(q.getId(), q.getTitle(), q.getUser().getNickname(), q.getSubject().getName(), q.getProfessor().getName(), q.getCreatedAt(), hasAdoptedAnswer);
+		public static Summary from(QuestionPost q, boolean hasAiAnswer, boolean hasMemberAnswer, boolean isAdopted) {
+			return new Summary(q.getId(), q.getTitle(), q.getUser().getNickname(), q.getSubject().getName(), q.getProfessor().getName(), q.getCreatedAt(), hasAiAnswer, hasMemberAnswer, isAdopted);
 		}
 	}
 

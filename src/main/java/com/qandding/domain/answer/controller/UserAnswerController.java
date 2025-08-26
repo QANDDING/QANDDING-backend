@@ -1,5 +1,6 @@
 package com.qandding.domain.answer.controller;
 
+import com.qandding.domain.answer.dto.AnswerCreateRequest;
 import com.qandding.domain.answer.dto.UserAnswerDtos;
 import com.qandding.domain.answer.repository.UserAnswerQueryRepository;
 import com.qandding.domain.answer.service.UserAnswerService;
@@ -14,16 +15,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 
 @Slf4j
@@ -36,38 +39,57 @@ public class UserAnswerController {
     private final UserAnswerService userAnswerService;
     private final UserAnswerQueryRepository userAnswerQueryRepository;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "사용자 답변 생성", description = "텍스트와 파일(이미지/PDF)을 멀티파트로 받아 사용자 답변을 생성합니다.")
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    @Operation(summary = "사용자 답변 생성 (Presigned URL 방식)", description = "S3에 선업로드 후, 파일 URL과 함께 답변 내용을 JSON으로 받아 생성합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "사용자 답변 생성 성공",
-                content = @Content(mediaType = "application/json",
-                        schema = @Schema(implementation = CommonResponse.class))),
+        @ApiResponse(responseCode = "201", description = "사용자 답변 생성 성공",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = CommonResponse.class),
+                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
+                    {
+                      "code": "CREATED",
+                      "message": "생성 성공",
+                      "data": 1
+                    }
+                    """))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음"),
-        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
     })
     public ResponseEntity<CommonResponse<Long>> create(
-            @Parameter(description = "질문 ID") @RequestParam("questionPostId") Long questionPostId,
-            @Parameter(description = "답변 제목") @RequestParam("title") String title,
-            @Parameter(description = "답변 내용") @RequestParam("content") String content,
-            @Parameter(description = "첨부 파일 목록(이미지/PDF)") @RequestPart(value = "files", required = false) List<MultipartFile> files,
+            @RequestBody @Valid AnswerCreateRequest request,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.debug("create() 호출됨 - questionPostId: {}, title: {}, userId: {}", questionPostId, title, customPrincipal.getUserId());
         log.info("사용자 답변 생성 요청 - userId: {}, questionPostId: {}, title: {}",
-                customPrincipal.getUserId(), questionPostId, title);
+                customPrincipal.getUserId(), request.getQuestionPostId(), request.getTitle());
 
-        Long userAnswerId = userAnswerService.createUserAnswerWithFiles(questionPostId, title, content, files, customPrincipal.getUserId());
+        Long userAnswerId = userAnswerService.createUserAnswerWithImageUrls(
+            request.getQuestionPostId(),
+            request.getTitle(),
+            request.getContent(),
+            request.getImageUrls(),
+            customPrincipal.getUserId()
+        );
 
         log.info("사용자 답변 생성 완료 - answerId: {}, userId: {}", userAnswerId, customPrincipal.getUserId());
-        log.debug("create() 반환 - userAnswerId: {}", userAnswerId);
-        return ResponseEntity.ok(CommonResponse.success(ResponseCode.CREATED, userAnswerId));
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(ResponseCode.CREATED, userAnswerId));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "사용자 답변 상세 조회", description = "특정 사용자 답변의 상세 정보를 조회합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "조회 성공"),
+        @ApiResponse(responseCode = "200", description = "조회 성공",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = UserAnswerDtos.Detail.class),
+                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
+                    {
+                      "id": 1,
+                      "title": "미적분학 1번 문제 답변입니다.",
+                      "content": "이 문제의 풀이 과정은 다음과 같습니다...",
+                      "authorNickname": "답변자1",
+                      "createdAt": "2025-08-27T10:00:00",
+                      "imageUrls": ["https://example.com/answer_image1.jpg"]
+                    }
+                    """))),
         @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
     })
     public ResponseEntity<UserAnswerDtos.Detail> get(@Parameter(description = "답변 ID") @PathVariable Long id) {
@@ -84,7 +106,14 @@ public class UserAnswerController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "사용자 답변 삭제 성공",
                 content = @Content(mediaType = "application/json",
-                        schema = @Schema(implementation = CommonResponse.class))),
+                        schema = @Schema(implementation = CommonResponse.class),
+                        examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
+                            {
+                              "code": "NO_CONTENT",
+                              "message": "성공",
+                              "data": 1
+                            }
+                            """))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
         @ApiResponse(responseCode = "403", description = "권한 없음"),
         @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음"),
