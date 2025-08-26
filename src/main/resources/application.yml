@@ -22,7 +22,7 @@ spring:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
             scope: openid, email, profile
-            redirect-uri: 'https://qandding-frontend.vercel.app/login/oauth2/code/google'
+            redirect-uri: 'https://qandding.store/login/oauth2/code/google'
         provider:
           google:
             issuer-uri: https://accounts.google.com
