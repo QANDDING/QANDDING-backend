@@ -46,8 +46,9 @@ public class QuestionQueryRepository {
 		}
 
 		if (keyword != null && !keyword.isBlank()) {
-			BooleanExpression titleContains = questionPost.title.containsIgnoreCase(keyword);
-			BooleanExpression contentContains = questionPost.content.containsIgnoreCase(keyword);
+																		BooleanExpression titleContains = questionPost.title.like("%" + keyword + "%");
+			BooleanExpression contentContains = questionPost.content.like("%" + keyword + "%");
+			conditions.add(titleContains.or(contentContains));" + keyword.toLowerCase() + "%");
 			conditions.add(titleContains.or(contentContains));
 		}
 
