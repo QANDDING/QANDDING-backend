@@ -3,12 +3,12 @@ package com.qandding.domain.answer.dto;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.qandding.domain.answer.entity.UserAnswer;
+import com.qandding.domain.answer.entity.AnswerPost;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-public class UserAnswerDtos {
+public class AnswerPostDtos {
 	@Getter
 	@AllArgsConstructor
 	public static class Summary {
@@ -17,11 +17,11 @@ public class UserAnswerDtos {
 		private final String authorNickname;
 		private final LocalDateTime createdAt;
 
-		public static Summary from(UserAnswer answer) {
+		public static Summary from(AnswerPost answer) {
 			return new Summary(
 				answer.getId(),
 				answer.getTitle(),
-				answer.getUser().getNickname(),
+				answer.getAuthor().getNickname(),
 				answer.getCreatedAt()
 			);
 		}
@@ -37,12 +37,12 @@ public class UserAnswerDtos {
 		private final LocalDateTime createdAt;
 		private final List<String> imageUrls;
 
-		public static Detail from(UserAnswer answer) {
+		public static Detail from(AnswerPost answer) {
 			return new Detail(
 				answer.getId(),
 				answer.getTitle(),
 				answer.getContent(),
-				answer.getUser().getNickname(),
+				answer.getAuthor().getNickname(),
 				answer.getCreatedAt(),
 				null
 			);

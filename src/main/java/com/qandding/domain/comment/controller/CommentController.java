@@ -49,8 +49,10 @@ public class CommentController {
                       "data": 1
                     }
                     """))),
-        @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
+                @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<CommonResponse<Long>> create(
             @RequestBody @Valid CommentCreateRequest request,
@@ -68,7 +70,11 @@ public class CommentController {
     }
 
         @GetMapping
-    @Operation(summary = "댓글 목록 조회", description = "특정 답변의 댓글(대댓글 포함)을 스레드 형태로 페이징 조회합니다.")
+    @Operation(
+        summary = "댓글 목록 조회",
+        description = "특정 답변의 댓글(대댓글 포함)을 스레드 형태로 페이징 조회합니다.",
+        security = {}
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "조회 성공",
             content = @Content(mediaType = "application/json",
@@ -126,8 +132,10 @@ public class CommentController {
                       "data": 2
                     }
                     """))),
-        @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "부모 댓글을 찾을 수 없음")
+                @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "부모 댓글을 찾을 수 없음"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<CommonResponse<Long>> reply(
             @RequestBody @Valid ReplyCreateRequest request,
