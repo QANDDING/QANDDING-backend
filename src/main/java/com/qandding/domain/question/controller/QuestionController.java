@@ -54,8 +54,10 @@ public class QuestionController {
                       "data": 1
                     }
                     """))),
-        @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "관련 정보(사용자, 과목, 교수)를 찾을 수 없음")
+                @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "404", description = "관련 정보(사용자, 과목, 교수)를 찾을 수 없음"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<CommonResponse<Long>> create(
             @RequestBody @Valid QuestionCreateRequest request,
@@ -75,7 +77,11 @@ public class QuestionController {
     }
 
     @GetMapping
-    @Operation(summary = "질문 목록 조회", description = "조건에 맞는 질문 목록을 페이징하여 조회합니다.")
+    @Operation(
+        summary = "질문 목록 조회",
+        description = "조건에 맞는 질문 목록을 페이징하여 조회합니다.",
+        security = {}
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "조회 성공",
             content = @Content(mediaType = "application/json",
@@ -134,7 +140,11 @@ public class QuestionController {
     
 
     @GetMapping("/{id}")
-    @Operation(summary = "질문 상세 조회", description = "특정 질문의 상세 정보를 조회합니다.")
+    @Operation(
+        summary = "질문 상세 조회",
+        description = "특정 질문의 상세 정보를 조회합니다.",
+        security = {}
+    )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "조회 성공",
             content = @Content(mediaType = "application/json",

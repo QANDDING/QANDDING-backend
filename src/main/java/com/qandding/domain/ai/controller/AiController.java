@@ -33,8 +33,10 @@ public class AiController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "생성 성공"),
             @ApiResponse(responseCode = "401", description = "인증 실패"),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청")
+                        @ApiResponse(responseCode = "400", description = "잘못된 요청"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
+
     public ResponseEntity<Map<String, String>> generate(@RequestBody Map<String, String> req,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
         

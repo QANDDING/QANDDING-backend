@@ -1,46 +1,49 @@
 package com.qandding.domain.ai.dto;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import com.qandding.domain.ai.entity.AiAnswer;
-
+import com.qandding.domain.answer.entity.AnswerPost;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-public class AiAnswerDtos {
-	@Getter
-	@AllArgsConstructor
-	public static class Summary {
-		private final Long id;
-		private final String title;
-		private final LocalDateTime createdAt;
+import java.time.LocalDateTime;
+import java.util.List;
 
-		public static Summary from(AiAnswer answer) {
-			return new Summary(
-				answer.getId(),
-				answer.getTitle(),
-				answer.getCreatedAt()
-			);
-		}
-	}
+public class AiAnswerDtos {
 
     @Getter
     @AllArgsConstructor
-    public static class Detail {
-        private final Long id;
-        private final String title;
-        private final String content;
-        private final LocalDateTime createdAt;
-        private final List<String> imageUrls;
+    @Schema(description = "AI 답변 요약 정보 DTO")
+    public static class Summary {
+        private Long id;
+        private String title;
+        private LocalDateTime createdAt;
 
-        public static Detail from(AiAnswer answer) {
+        public static Summary from(AnswerPost answerPost) {
+            return new Summary(
+                answerPost.getId(),
+                answerPost.getTitle(),
+                answerPost.getCreatedAt()
+            );
+        }
+    }
+
+    @Getter
+    @AllArgsConstructor
+    @Schema(description = "AI 답변 상세 정보 DTO")
+    public static class Detail {
+        private Long id;
+        private String title;
+        private String content;
+        private LocalDateTime createdAt;
+        private List<String> imageUrls;
+
+        public static Detail from(AnswerPost answerPost) {
             return new Detail(
-                answer.getId(),
-                answer.getTitle(),
-                answer.getContent(),
-                answer.getCreatedAt(),
-                null
+                answerPost.getId(),
+                answerPost.getTitle(),
+                answerPost.getContent(),
+                answerPost.getCreatedAt(),
+                List.of() // AI Answers do not have images in this context
             );
         }
     }

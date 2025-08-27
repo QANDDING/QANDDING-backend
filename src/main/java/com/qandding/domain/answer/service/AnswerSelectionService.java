@@ -2,6 +2,7 @@ package com.qandding.domain.answer.service;
 
 import com.qandding.domain.answer.entity.AnswerPost;
 import com.qandding.domain.answer.entity.AnswerSelection;
+import com.qandding.domain.answer.entity.AnswerType;
 import com.qandding.domain.answer.repository.AnswerPostRepository;
 import com.qandding.domain.answer.repository.AnswerSelectionRepository;
 import com.qandding.global.common.error.BusinessException;
@@ -27,7 +28,7 @@ public class AnswerSelectionService {
             throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
         }
 
-        if (answer.getAiAnswer() != null) {
+        if (answer.getAnswerType() == AnswerType.AI) {
             throw new BusinessException(ErrorCode.BAD_REQUEST);
         }
 

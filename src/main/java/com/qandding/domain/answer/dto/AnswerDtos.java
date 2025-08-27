@@ -30,7 +30,10 @@ public class AnswerDtos {
 		}
 
 		public static Summary from(AnswerPost a) {
-			return new Summary(a.getId(), a.getTitle(), a.getUser().getNickname(), a.getAiAnswer() != null, a.getCreatedAt(), null);
+			boolean isAi = a.getAnswerType() == com.qandding.domain.answer.entity.AnswerType.AI;
+			String nickname = isAi ? (a.getRequester() != null ? a.getRequester().getNickname() : "AI")
+			                       : (a.getAuthor() != null ? a.getAuthor().getNickname() : "Unknown");
+			return new Summary(a.getId(), a.getTitle(), nickname, isAi, a.getCreatedAt(), null);
 		}
 	}
 

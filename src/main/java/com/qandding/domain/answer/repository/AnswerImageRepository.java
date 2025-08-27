@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AnswerImageRepository extends JpaRepository<AnswerImage, Long> {
   List<AnswerImage> findByAnswerPostIdOrderBySortOrderAsc(Long answerPostId);
   List<AnswerImage> findByAnswerPostIdInOrderBySortOrderAsc(Collection<Long> answerPostIds);
+
+  void deleteAllByAnswerPostId(Long answerPostId);
 }

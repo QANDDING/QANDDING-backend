@@ -2,10 +2,11 @@ package com.qandding.domain.answer.service;
 
 import com.qandding.domain.answer.dto.AnswerDtos;
 import com.qandding.domain.answer.entity.AnswerPost;
+import com.qandding.domain.answer.entity.AnswerType;
 import com.qandding.domain.answer.repository.AnswerImageRepository;
 import com.qandding.domain.answer.repository.AnswerPostRepository;
-import com.qandding.global.common.paging.PageResponse;
 import com.qandding.domain.answer.repository.AnswerSelectionRepository;
+import com.qandding.global.common.paging.PageResponse;
 import com.qandding.global.storage.S3PresignService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,22 +36,23 @@ public class AnswerFeedService {
     public AnswerDtos.Combined getCombinedFeed(Long questionPostId, int page, int size) {
         // 1) AI 답변 (있으면 1개)
         AnswerDtos.Detail aiDetail = null;
-        AnswerPost aiPost = answerPostRepository.findFirstByQuestionPost_IdAndAiAnswerIsNotNull(questionPostId);
+        AnswerPost aiPost = answerPostRepository.findTopByQuestionPost_IdAndAnswerTypeOrderByCreatedAtDesc(questionPostId, AnswerType.AI);
         if (aiPost != null) {
             List<String> images = answerImageRepository.findByAnswerPostIdOrderBySortOrderAsc(aiPost.getId())
                     .stream().map(ai -> s3PresignService.presignGetUrlByUrl(ai.getUrl())).toList();
+            // For AI answers, the author is "AI" and nickname can be from requester or a default
+            String nickname = aiPost.getRequester() != null ? aiPost.getRequester().getNickname() : "AI";
             aiDetail = new AnswerDtos.Detail(
                     aiPost.getId(), aiPost.getTitle(), aiPost.getContent(),
-                    aiPost.getUser().getNickname(), aiPost.getCreatedAt(), images, true, false
+                    nickname, aiPost.getCreatedAt(), images, true, false
             );
         }
 
-        // 2) 사용자 답변 페이지 (AI 제외)
-        // 페이징은 id 오름차순으로 정렬
+        // 2) 사용자 답변 페이지
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "id"));
-        Page<AnswerPost> userPage = answerPostRepository.findByQuestionPost_IdAndAiAnswerIsNull(questionPostId, pageable);
+        Page<AnswerPost> userPage = answerPostRepository.findByQuestionPost_IdAndAnswerType(questionPostId, AnswerType.USER, pageable);
 
-        // 채택 답변 ID 조회 (질문별 1개 가능)
+        // 채택 답변 ID 조회
         Long adoptedAnswerId = answerSelectionRepository.findByQuestionPost_Id(questionPostId)
                 .map(sel -> sel.getAnswerPost().getId())
                 .orElse(null);
@@ -66,13 +68,14 @@ public class AnswerFeedService {
             }
         }
 
-        List<AnswerDtos.Detail> userDetails = userPage.getContent().stream().map(p ->
-                new AnswerDtos.Detail(
-                        p.getId(), p.getTitle(), p.getContent(), p.getUser().getNickname(), p.getCreatedAt(),
-                        imageMap.getOrDefault(p.getId(), List.of()), false,
-                        adoptedAnswerId != null && p.getId().equals(adoptedAnswerId)
-                )
-        ).collect(Collectors.toList());
+        List<AnswerDtos.Detail> userDetails = userPage.getContent().stream().map(p -> {
+            String nickname = p.getAuthor() != null ? p.getAuthor().getNickname() : "Unknown";
+            return new AnswerDtos.Detail(
+                    p.getId(), p.getTitle(), p.getContent(), nickname, p.getCreatedAt(),
+                    imageMap.getOrDefault(p.getId(), List.of()), false,
+                    adoptedAnswerId != null && p.getId().equals(adoptedAnswerId)
+            );
+        }).collect(Collectors.toList());
 
         Page<AnswerDtos.Detail> detailPage = new PageImpl<>(userDetails, pageable, userPage.getTotalElements());
         PageResponse<AnswerDtos.Detail> users = PageResponse.of(detailPage);

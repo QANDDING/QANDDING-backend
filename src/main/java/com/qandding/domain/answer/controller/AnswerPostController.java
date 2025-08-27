@@ -1,11 +1,9 @@
 package com.qandding.domain.answer.controller;
 
 import com.qandding.domain.answer.dto.AnswerCreateRequest;
-import com.qandding.domain.answer.dto.UserAnswerDtos;
-import com.qandding.domain.answer.repository.UserAnswerQueryRepository;
-import com.qandding.domain.answer.service.UserAnswerService;
+import com.qandding.domain.answer.dto.AnswerPostDtos;
+import com.qandding.domain.answer.service.AnswerPostService;
 import com.qandding.domain.user.entity.CustomUserPrincipal;
-import com.qandding.global.common.paging.PageResponse;
 import com.qandding.global.common.response.CommonResponse;
 import com.qandding.global.common.response.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,31 +16,25 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @Slf4j
 @RestController
-@RequestMapping("/api/user-answers")
+@RequestMapping("/api/answers")
 @RequiredArgsConstructor
-@Tag(name = "User Answer", description = "사용자 답변 관련 API")
-public class UserAnswerController {
+@Tag(name = "Answer Post", description = "답변 게시글 관련 API (생성/조회/삭제)")
+public class AnswerPostController {
 
-    private final UserAnswerService userAnswerService;
-    private final UserAnswerQueryRepository userAnswerQueryRepository;
+    private final AnswerPostService answerPostService;
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "사용자 답변 생성 (Presigned URL 방식)", description = "S3에 선업로드 후, 파일 URL과 함께 답변 내용을 JSON으로 받아 생성합니다.")
+    @Operation(summary = "답변 게시글 생성 (Presigned URL 방식)", description = "S3에 선업로드 후, 파일 URL과 함께 답변 내용을 JSON으로 받아 생성합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "사용자 답변 생성 성공",
+        @ApiResponse(responseCode = "201", description = "답변 게시글 생성 성공",
             content = @Content(mediaType = "application/json",
                 schema = @Schema(implementation = CommonResponse.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
@@ -53,16 +45,18 @@ public class UserAnswerController {
                     }
                     """))),
         @ApiResponse(responseCode = "401", description = "인증 실패"),
-        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음")
+        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<CommonResponse<Long>> create(
             @RequestBody @Valid AnswerCreateRequest request,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.info("사용자 답변 생성 요청 - userId: {}, questionPostId: {}, title: {}",
+        log.info("답변 게시글 생성 요청 - userId: {}, questionPostId: {}, title: {}",
                 customPrincipal.getUserId(), request.getQuestionPostId(), request.getTitle());
 
-        Long userAnswerId = userAnswerService.createUserAnswerWithImageUrls(
+        Long answerPostId = answerPostService.createAnswerPostForUserWithImageUrls(
             request.getQuestionPostId(),
             request.getTitle(),
             request.getContent(),
@@ -70,16 +64,16 @@ public class UserAnswerController {
             customPrincipal.getUserId()
         );
 
-        log.info("사용자 답변 생성 완료 - answerId: {}, userId: {}", userAnswerId, customPrincipal.getUserId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(ResponseCode.CREATED, userAnswerId));
+        log.info("답변 게시글 생성 완료 - answerPostId: {}, userId: {}", answerPostId, customPrincipal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(CommonResponse.success(ResponseCode.CREATED, answerPostId));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "사용자 답변 상세 조회", description = "특정 사용자 답변의 상세 정보를 조회합니다.")
+    @Operation(summary = "답변 게시글 상세 조회", description = "특정 답변 게시글의 상세 정보를 조회합니다.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "조회 성공",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserAnswerDtos.Detail.class),
+                schema = @Schema(implementation = AnswerPostDtos.Detail.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
                     {
                       "id": 1,
@@ -90,21 +84,20 @@ public class UserAnswerController {
                       "imageUrls": ["https://example.com/answer_image1.jpg"]
                     }
                     """))),
-        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음")
+        @ApiResponse(responseCode = "404", description = "답변을 찾을 수 없음"),
+        @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<UserAnswerDtos.Detail> get(@Parameter(description = "답변 ID") @PathVariable Long id) {
-        log.debug("get() 호출됨 - id: {}", id);
-        // 이 API는 인증이 필요 없도록 설계 (누구나 답변 상세 내용을 볼 수 있음)
-        log.info("Fetching user answer with id: {}", id);
-        UserAnswerDtos.Detail detail = userAnswerService.getUserAnswerDetail(id);
-        log.debug("get() 반환 - userAnswerId: {}", detail.getId());
+    public ResponseEntity<AnswerPostDtos.Detail> get(@Parameter(description = "답변 ID (AnswerPost ID)") @PathVariable Long id) {
+        log.info("Fetching answer post with id: {}", id);
+        AnswerPostDtos.Detail detail = answerPostService.getAnswerPostDetail(id);
         return ResponseEntity.ok(detail);
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "사용자 답변 삭제", description = "특정 사용자 답변을 삭제합니다.")
+    @Operation(summary = "답변 게시글 삭제", description = "특정 답변 게시글을 삭제합니다.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "사용자 답변 삭제 성공",
+        @ApiResponse(responseCode = "200", description = "답변 게시글 삭제 성공",
                 content = @Content(mediaType = "application/json",
                         schema = @Schema(implementation = CommonResponse.class),
                         examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
@@ -120,14 +113,12 @@ public class UserAnswerController {
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     public ResponseEntity<CommonResponse<Long>> delete(
-            @Parameter(description = "답변 ID") @PathVariable Long id,
+            @Parameter(description = "답변 ID (AnswerPost ID)") @PathVariable Long id,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.debug("delete() 호출됨 - id: {}, userId: {}", id, customPrincipal.getUserId());
-        log.info("사용자 답변 삭제 요청 - answerId: {}, userId: {}", id, customPrincipal.getUserId());
-        userAnswerService.deleteUserAnswer(id, customPrincipal.getUserId());
-        log.info("사용자 답변 삭제 완료 - answerId: {}, userId: {}", id, customPrincipal.getUserId());
-        log.debug("delete() 반환 - void");
+        log.info("답변 게시글 삭제 요청 - answerPostId: {}, userId: {}", id, customPrincipal.getUserId());
+        answerPostService.deleteAnswerPost(id, customPrincipal.getUserId());
+        log.info("답변 게시글 삭제 완료 - answerPostId: {}, userId: {}", id, customPrincipal.getUserId());
         return ResponseEntity.ok(CommonResponse.success(ResponseCode.NO_CONTENT, id));
     }
 }

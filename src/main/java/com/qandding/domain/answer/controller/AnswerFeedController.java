@@ -93,7 +93,9 @@ public class AnswerFeedController {
 """
                             )
                     )),
-            @ApiResponse(responseCode = "401", description = "인증 실패"),
+                        @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+            @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음"),
             @ApiResponse(responseCode = "500", description = "서버 오류")
     })
     public ResponseEntity<AnswerDtos.Combined> combined(

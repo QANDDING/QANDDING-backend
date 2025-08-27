@@ -7,6 +7,8 @@ import static com.qandding.domain.question.entity.QQuestionPost.questionPost;
 import static com.qandding.domain.subject.entity.QSubject.subject;
 import static com.qandding.domain.user.entity.QUser.user;
 
+import com.qandding.domain.answer.entity.AnswerType;
+
 import com.qandding.domain.question.dto.QuestionDtos;
 import com.qandding.domain.question.dto.QuestionStatusFilter;
 import com.querydsl.core.types.Projections;
@@ -52,12 +54,12 @@ public class QuestionQueryRepository {
 		if (status != null) {
 			switch (status) {
 				case ANSWERED:
-					BooleanExpression hasAiAnswer = JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.aiAnswer.isNotNull())).exists();
-					BooleanExpression hasMemberAnswer = JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.aiAnswer.isNull())).exists();
+					BooleanExpression hasAiAnswer = JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.answerType.eq(AnswerType.AI))).exists();
+					BooleanExpression hasMemberAnswer = JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.answerType.eq(AnswerType.USER))).exists();
 					conditions.add(hasAiAnswer.or(hasMemberAnswer));
 					break;
 				case UNANSWERED:
-					conditions.add(JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.aiAnswer.isNull())).notExists());
+					conditions.add(JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.answerType.eq(AnswerType.USER))).notExists());
 					break;
 				case ADOPTED:
 					conditions.add(JPAExpressions.selectOne().from(answerSelection).where(answerSelection.questionPost.eq(questionPost)).exists());
@@ -86,8 +88,8 @@ public class QuestionQueryRepository {
 				subject.name,
 				professor.name,
 				questionPost.createdAt,
-				JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.aiAnswer.isNotNull())).exists(), // hasAiAnswer
-				JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.aiAnswer.isNull())).exists(),    // hasMemberAnswer
+				JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.answerType.eq(AnswerType.AI))).exists(), // hasAiAnswer
+				JPAExpressions.selectOne().from(answerPost).where(answerPost.questionPost.eq(questionPost).and(answerPost.answerType.eq(AnswerType.USER))).exists(),    // hasMemberAnswer
 				JPAExpressions.selectOne().from(answerSelection).where(answerSelection.questionPost.eq(questionPost)).exists() // isAdopted
 			))
 			.from(questionPost)
