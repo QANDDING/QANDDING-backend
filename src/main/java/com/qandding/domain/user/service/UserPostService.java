@@ -28,13 +28,13 @@ public class UserPostService {
      * @param size 페이지 크기 (컨트롤러에서 10으로 고정)
      * @return 사용자가 작성한 글 목록
      */
-    public UserPostDtos.UserPostsResponse getUserPosts(Long userId, int page, int size, String keyword) {
-        log.info("사용자 통합 글 조회 요청 - userId: {}, page: {}, size: {}, keyword: {}", userId, page, size, keyword);
+    public UserPostDtos.UserPostsResponse getUserPosts(Long userId, int page, int size, String keyword, String postType) {
+        log.info("사용자 통합 글 조회 요청 - userId: {}, page: {}, size: {}, keyword: {}, postType: {}", userId, page, size, keyword, postType);
 
         Pageable pageable = PageRequest.of(page, size);
 
         // 통합된 글 목록을 Repository에서 조회
-        Page<UserPostQueryRepository.UnifiedPostProjection> postPage = userPostQueryRepository.findUnifiedPostsByUserId(userId, pageable, keyword);
+        Page<UserPostQueryRepository.UnifiedPostProjection> postPage = userPostQueryRepository.findUnifiedPostsByUserId(userId, pageable, keyword, postType);
 
         // Projection을 DTO로 변환 (생성자 사용)
         var unifiedPostDtos = postPage.getContent().stream()

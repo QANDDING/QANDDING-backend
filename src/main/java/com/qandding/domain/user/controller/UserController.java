@@ -125,10 +125,11 @@ public class UserController {
     public ResponseEntity<UserPostDtos.UserPostsResponse> getMyPosts(
             @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "검색 키워드 (제목 또는 내용)", required = false) @RequestParam(required = false) String keyword,
+            @Parameter(description = "글 종류 필터링 (QUESTION 또는 ANSWER)", required = false) @RequestParam(required = false) String postType,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.info("내가 쓴 글 조회 요청 - userId: {}, page: {}, keyword: {}", customPrincipal.getUserId(), page, keyword);
-        UserPostDtos.UserPostsResponse response = userPostService.getUserPosts(customPrincipal.getUserId(), page, 10, keyword);
+        log.info("내가 쓴 글 조회 요청 - userId: {}, page: {}, keyword: {}, postType: {}", customPrincipal.getUserId(), page, keyword, postType);
+        UserPostDtos.UserPostsResponse response = userPostService.getUserPosts(customPrincipal.getUserId(), page, 10, keyword, postType);
         return ResponseEntity.ok(response);
     }
 }
