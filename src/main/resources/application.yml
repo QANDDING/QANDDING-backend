@@ -31,10 +31,16 @@ server:
   port: 8080
   forward-headers-strategy: framework
 
+openai:
+  api-key: ${APP_OPENAI_API_KEY}
+
 app:
   oauth:
     allowed-domain: ${APP_OAUTH_ALLOWED_DOMAIN}
     redirect-url: ${APP_OAUTH_REDIRECT_URL}
+
+  tesseract:
+    data-path: ${TESSERACT_DATA_PATH}
 
   s3:
     bucket: ${APP_S3_BUCKET}
