@@ -3,12 +3,11 @@ package com.qandding.global.auth;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.entity.UserToken;
 import com.qandding.domain.user.repository.UserTokenRepository;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Slf4j
 @Service
@@ -28,11 +27,11 @@ public class TokenService {
         LocalDateTime accessExpiresAt = LocalDateTime.now().plusMinutes(15);
         UserToken accessTokenEntity = UserToken.createAccessToken(user, accessToken, accessExpiresAt);
         userTokenRepository.save(accessTokenEntity);
-        
+
         // Refresh Token 생성 (7일)
         String refreshToken = jwtTokenProvider.generateRefreshToken(user);
         LocalDateTime refreshExpiresAt = LocalDateTime.now().plusDays(7);
-        UserToken refreshTokenEntity = UserToken.createRefreshToken(user, refreshToken, refreshExpiresAt);
+            UserToken refreshTokenEntity = UserToken.createRefreshToken(user, refreshToken, refreshExpiresAt);
         userTokenRepository.save(refreshTokenEntity);
         
         log.info("토큰 쌍 생성 완료 - userId: {}, accessToken: {}, refreshToken: {}", 

@@ -4,9 +4,7 @@ import com.qandding.global.auth.CustomOAuth2UserService;
 import com.qandding.global.auth.JwtAuthenticationFilter;
 import com.qandding.global.auth.OAuth2AuthenticationFailureHandler;
 import com.qandding.global.auth.OAuth2LoginSuccessHandler;
-import com.qandding.global.ratelimit.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -18,70 +16,64 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
-@Slf4j
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CorsConfigurationSource corsConfigurationSource;
-    private final RateLimitFilter rateLimitFilter;
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
-    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+  private final CorsConfigurationSource corsConfigurationSource;
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final CustomOAuth2UserService customOAuth2UserService;
+  private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
+  private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
-    @Bean
-    @Order(1)
-    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
-        log.info("=== API SecurityFilterChain 설정 시작 ===");
-        
-        http
-            .securityMatcher("/api/**")
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/health", "/api/auth/**").permitAll()
-                .anyRequest().authenticated()
+  // API 엔드포인트를 위한 보안 설정 (Stateless, JWT 사용)
+  @Bean
+  @Order(1)
+  public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    http
+        .securityMatcher("/api/**") // /api/** 경로에만 이 필터 체인을 적용
+        .authorizeHttpRequests(auth -> auth
+            .requestMatchers("/api/auth/**").permitAll() // 토큰 발급/재발급 경로는 허용
+            .anyRequest().authenticated() // 나머지 API는 인증 필요
+        )
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션을 사용하지 않음
+        .csrf(AbstractHttpConfigurer::disable)
+        .cors(cors -> cors.configurationSource(corsConfigurationSource))
+        .httpBasic(AbstractHttpConfigurer::disable)
+        .formLogin(AbstractHttpConfigurer::disable)
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // JWT 필터 추가
+
+    return http.build();
+  }
+
+  // 웹 페이지 및 OAuth2 로그인을 위한 보안 설정 (Stateful, 세션 사용)
+  @Bean
+  @Order(2)
+  public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
+    http
+        .authorizeHttpRequests(auth -> auth
+            // "/", "/oauth2/**" 등 로그인 관련 경로는 모두 허용
+            .requestMatchers("/", "/login/**", "/oauth2/**", "/error").permitAll()
+            .anyRequest().authenticated() // 그 외의 웹 경로는 인증 필요 (필요시 denyAll() 또는 다른 규칙 적용)
+        )
+        .oauth2Login(oauth -> oauth
+            // OAuth2 로그인 성공 후 사용자 정보를 가져올 때의 설정
+            .userInfoEndpoint(userInfo -> userInfo
+                .oidcUserService(customOAuth2UserService) // OIDC 기반의 UserService 등록
             )
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(AbstractHttpConfigurer::disable)
-            .formLogin(AbstractHttpConfigurer::disable)
-            .httpBasic(AbstractHttpConfigurer::disable)
-            .oauth2Login(AbstractHttpConfigurer::disable)
-            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+            .successHandler(oAuth2LoginSuccessHandler) // 로그인 성공 시 핸들러
+            .failureHandler(oAuth2AuthenticationFailureHandler) // 로그인 실패 시 핸들러
+        )
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)) // OAuth2 로그인을 위해 필요 시 세션 생성
+        .csrf(AbstractHttpConfigurer::disable)
+        .cors(cors -> cors.configurationSource(corsConfigurationSource))
+        .logout(logout -> logout
+            .logoutSuccessUrl("/")
+            .invalidateHttpSession(true)
+            .deleteCookies("JSESSIONID")
+        );
 
-        log.info("=== API SecurityFilterChain 설정 완료 ===");
-        return http.build();
-    }
-
-    @Bean
-    @Order(2)
-    public SecurityFilterChain webFilterChain(HttpSecurity http) throws Exception {
-        log.info("=== Web SecurityFilterChain 설정 시작 ===");
-        log.info("CustomOAuth2UserService: {}", customOAuth2UserService.getClass().getSimpleName());
-        log.info("OAuth2LoginSuccessHandler: {}", oAuth2LoginSuccessHandler.getClass().getSimpleName());
-        log.info("OAuth2AuthenticationFailureHandler: {}", oAuth2AuthenticationFailureHandler.getClass().getSimpleName());
-        
-        http
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/login/**", "/oauth2/**", "/error", "/swagger-ui/**", "/v3/api-docs/**", "/favicon.ico").permitAll()
-                .anyRequest().denyAll()
-            )
-            .oauth2Login(oauth -> oauth
-                .userInfoEndpoint(userInfo -> {
-                    log.info("OAuth2 userInfoEndpoint 설정");
-                    userInfo.userService(customOAuth2UserService);
-                })
-                .successHandler(oAuth2LoginSuccessHandler)
-                .failureHandler(oAuth2AuthenticationFailureHandler)
-            )
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
-            .cors(cors -> cors.configurationSource(corsConfigurationSource))
-            .csrf(AbstractHttpConfigurer::disable)
-            .logout(logout -> logout.logoutSuccessUrl("/"));
-
-        log.info("=== Web SecurityFilterChain 설정 완료 ===");
-        return http.build();
-    }
+    return http.build();
+  }
 }

@@ -6,6 +6,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -17,47 +18,60 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Objects;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
   private final JwtTokenProvider jwtTokenProvider;
   private final UserRepository userRepository;
-  private final TokenService tokenService;
-
-  // 생성자에서 모든 의존성이 주입되었는지 강제로 확인합니다.
-  public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, UserRepository userRepository, TokenService tokenService) {
-    this.jwtTokenProvider = Objects.requireNonNull(jwtTokenProvider, "jwtTokenProvider는 null일 수 없습니다.");
-    this.userRepository = Objects.requireNonNull(userRepository, "userRepository는 null일 수 없습니다.");
-    this.tokenService = Objects.requireNonNull(tokenService, "tokenService는 null일 수 없습니다.");
-  }
 
   @Override
-  protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
-      throws ServletException, IOException {
+  protected void doFilterInternal(@NonNull HttpServletRequest request,
+      @NonNull HttpServletResponse response,
+      @NonNull FilterChain filterChain) throws ServletException, IOException {
+
     try {
-      String jwt = getJwtFromRequest(request);
-      if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)
-          && jwtTokenProvider.isAccessToken(jwt) && tokenService.isTokenValid(jwt)) {
-        Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
+      // 1. 요청 헤더에서 JWT 토큰을 추출합니다.
+      String token = extractTokenFromRequest(request);
+
+      // 2. 토큰이 유효한지 검증합니다.
+      if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+        // 3. 토큰에서 사용자 ID를 가져옵니다.
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+        // 4. 사용자 ID로 DB에서 사용자 정보를 조회합니다.
         userRepository.findById(userId).ifPresent(user -> {
+          // 5. 인증을 위한 CustomUserPrincipal 객체를 생성합니다.
           CustomUserPrincipal userPrincipal = new CustomUserPrincipal(
-              user.getId(), user.getEmail(), user.getNickname(), List.of(new SimpleGrantedAuthority("ROLE_USER"))
+              user.getId(),
+              user.getEmail(),
+              user.getNickname(),
+              List.of(new SimpleGrantedAuthority("ROLE_USER"))
           );
-          UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities());
+
+          // 6. Spring Security의 Authentication 객체를 생성하여 SecurityContext에 등록합니다.
+          UsernamePasswordAuthenticationToken authentication =
+              new UsernamePasswordAuthenticationToken(userPrincipal, null, userPrincipal.getAuthorities());
+
           SecurityContextHolder.getContext().setAuthentication(authentication);
+          log.debug("Security Context에 '{}' 인증 정보를 저장했습니다, uri: {}", user.getEmail(), request.getRequestURI());
         });
       }
     } catch (Exception e) {
-      log.error("JwtAuthenticationFilter에서 처리되지 않은 예외 발생", e);
-      // 여기서 직접 응답을 보내지 않고, 예외를 Security Chain의 후속 처리기(ExceptionTranslationFilter)에 맡깁니다.
+      log.error("Security Context에 사용자 인증 정보를 설정할 수 없습니다.", e);
     }
+
     filterChain.doFilter(request, response);
   }
 
-  private String getJwtFromRequest(HttpServletRequest request) {
+  /**
+   * HttpServletRequest의 Authorization 헤더에서 Bearer 토큰을 추출합니다.
+   * @param request HttpServletRequest 객체
+   * @return 추출된 토큰 문자열, 없거나 형식이 맞지 않으면 null
+   */
+  private String extractTokenFromRequest(HttpServletRequest request) {
     String bearerToken = request.getHeader("Authorization");
     if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
       return bearerToken.substring(7);

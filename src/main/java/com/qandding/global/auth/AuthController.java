@@ -37,7 +37,6 @@ public class AuthController {
     @PostMapping("/logout")
     @Operation(summary = "로그아웃", description = "서버에 저장된 사용자의 모든 토큰(Access, Refresh)을 무효화합니다.")
     public ResponseEntity<Void> logout(@AuthenticationPrincipal CustomUserPrincipal customPrincipal) {
-        // @AuthenticationPrincipal이 존재한다는 것 자체가 인증되었음을 의미
         log.info("로그아웃 요청 - userId: {}", customPrincipal.getUserId());
         tokenService.invalidateTokens(customPrincipal.getUserId());
         return ResponseEntity.noContent().build();

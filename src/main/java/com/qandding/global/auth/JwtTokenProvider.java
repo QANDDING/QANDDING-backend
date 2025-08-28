@@ -1,12 +1,10 @@
 package com.qandding.global.auth;
 
 import com.qandding.domain.user.entity.User;
-import com.qandding.domain.user.repository.UserRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.jsonwebtoken.security.SecurityException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -15,135 +13,96 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
-    private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
+  private final SecretKey key;
+  private final long accessTokenExpiration;
+  private final long refreshTokenExpiration;
 
-    @Value("${app.jwt.secret}")
-    private String jwtSecret;
+  public JwtTokenProvider(
+      @Value("${app.jwt.secret}") String secretKey,
+      @Value("${app.jwt.access-expiration}") long accessTokenExpiration,
+      @Value("${app.jwt.refresh-expiration}") long refreshTokenExpiration) {
+    this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
+    this.accessTokenExpiration = accessTokenExpiration;
+    this.refreshTokenExpiration = refreshTokenExpiration;
+  }
 
-    @Value("${app.jwt.access-expiration:900000}") // 15분 (밀리초)
-    private long accessTokenExpiration;
+  /**
+   * 사용자의 Access Token을 생성합니다.
+   * @param user 사용자 엔티티
+   * @return 생성된 Access Token 문자열
+   */
+  public String generateAccessToken(User user) {
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("userId", user.getId());
+    claims.put("email", user.getEmail());
 
-    @Value("${app.jwt.refresh-expiration:604800000}") // 7일 (밀리초)
-    private long refreshTokenExpiration;
+    return Jwts.builder()
+        .setClaims(claims)
+        .setSubject(user.getEmail())
+        .setIssuedAt(new Date())
+        .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
+        .signWith(key, SignatureAlgorithm.HS512)
+        .compact();
+  }
 
-    private final UserRepository userRepository;
+  /**
+   * 사용자의 Refresh Token을 생성합니다.
+   * @param user 사용자 엔티티
+   * @return 생성된 Refresh Token 문자열
+   */
+  public String generateRefreshToken(User user) {
+    return Jwts.builder()
+        .setSubject(user.getEmail())
+        .setIssuedAt(new Date())
+        .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
+        .signWith(key, SignatureAlgorithm.HS512)
+        .compact();
+  }
 
-    public JwtTokenProvider(UserRepository userRepository) {
-        this.userRepository = userRepository;
+  /**
+   * JWT 토큰을 검증합니다.
+   * @param token 검증할 토큰
+   * @return 유효하면 true, 아니면 false
+   */
+  public boolean validateToken(String token) {
+    try {
+      Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+      return true;
+    } catch (SecurityException | MalformedJwtException e) {
+      log.warn("잘못된 JWT 서명입니다.", e);
+    } catch (ExpiredJwtException e) {
+      log.warn("만료된 JWT 토큰입니다.", e);
+    } catch (UnsupportedJwtException e) {
+      log.warn("지원되지 않는 JWT 토큰입니다.", e);
+    } catch (IllegalArgumentException e) {
+      log.warn("JWT 토큰이 잘못되었습니다.", e);
     }
+    return false;
+  }
 
-    private SecretKey getSigningKey() {
-        return Keys.hmacShaKeyFor(jwtSecret.getBytes());
-    }
+  /**
+   * 토큰에서 Claims 정보를 추출합니다.
+   * @param token 정보를 추출할 토큰
+   * @return Claims 객체
+   */
+  private Claims getClaimsFromToken(String token) {
+    return Jwts.parserBuilder()
+        .setSigningKey(key)
+        .build()
+        .parseClaimsJws(token)
+        .getBody();
+  }
 
-    // 기존 메서드 (하위 호환성 유지)
-    public String generateToken(User user) {
-        return generateAccessToken(user);
-    }
-
-    // Access Token 생성 (15분)
-    public String generateAccessToken(User user) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
-        claims.put("email", user.getEmail());
-        claims.put("role", "USER");
-        claims.put("tokenType", "ACCESS");
-
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(user.getEmail())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + accessTokenExpiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
-                .compact();
-    }
-
-    // Refresh Token 생성 (7일)
-    public String generateRefreshToken(User user) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("userId", user.getId());
-        claims.put("email", user.getEmail());
-        claims.put("role", "USER");
-        claims.put("tokenType", "REFRESH");
-
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(user.getEmail())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + refreshTokenExpiration))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
-                .compact();
-    }
-
-    public Claims getClaimsFromToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-    }
-
-    public String getEmailFromToken(String token) {
-        return getClaimsFromToken(token).getSubject();
-    }
-
-    public Long getUserIdFromToken(String token) {
-        return getClaimsFromToken(token).get("userId", Long.class);
-    }
-
-    public String getTokenTypeFromToken(String token) {
-        return getClaimsFromToken(token).get("tokenType", String.class);
-    }
-
-    public long getExpirationTime(String token) {
-        return getClaimsFromToken(token).getExpiration().getTime();
-    }
-
-    public User getUserFromToken(String token) {
-        Long userId = getUserIdFromToken(token);
-        return userRepository.findById(userId).orElse(null);
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            log.error("Token validation failed: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    public boolean isTokenExpired(String token) {
-        try {
-            Claims claims = getClaimsFromToken(token);
-            return claims.getExpiration().before(new Date());
-        } catch (Exception e) {
-            return true;
-        }
-    }
-
-    public boolean isAccessToken(String token) {
-        try {
-            String tokenType = getTokenTypeFromToken(token);
-            return "ACCESS".equals(tokenType);
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public boolean isRefreshToken(String token) {
-        try {
-            String tokenType = getTokenTypeFromToken(token);
-            return "REFRESH".equals(tokenType);
-        } catch (Exception e) {
-            return false;
-        }
-    }
+  /**
+   * 토큰에서 사용자 ID를 추출합니다.
+   * @param token 사용자 ID를 추출할 토큰
+   * @return 사용자 ID (Long)
+   */
+  public Long getUserIdFromToken(String token) {
+    return getClaimsFromToken(token).get("userId", Long.class);
+  }
 }

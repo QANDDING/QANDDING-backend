@@ -23,13 +23,13 @@ public class User extends BaseTimeEntity {
 	@Column(name = "user_id")
 	private Long id;
 
-	@Column(nullable = false, length = 50)
+	@Column(length = 50)
 	private String nickname;
 
-	@Column(nullable = false, length = 20)
+	@Column(length = 20)
 	private String grade;
 
-	@Column(nullable = false, length = 50)
+	@Column(length = 50)
 	private String major;
 
 	@Column(nullable = false, length = 120, unique = true)
