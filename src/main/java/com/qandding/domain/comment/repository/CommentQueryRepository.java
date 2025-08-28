@@ -3,6 +3,7 @@ package com.qandding.domain.comment.repository;
 import static com.qandding.domain.comment.entity.QComment.comment;
 import static com.qandding.domain.user.entity.QUser.user;
 
+
 import com.qandding.domain.comment.dto.CommentDtos;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -64,9 +65,11 @@ public class CommentQueryRepository {
 		List<CommentDtos.Summary> content = base.stream()
 			.map(s -> new CommentDtos.Summary(
 				s.getId(), s.getNickname(), s.getContent(), s.getCreatedAt(),
-				imageMap.getOrDefault(s.getId(), List.of())
+				imageMap.getOrDefault(s.getId(), List.of()), 0, 0
 			))
 			.collect(Collectors.toList());
+
+
 
 		return new PageImpl<>(content, pageable, total);
 	}

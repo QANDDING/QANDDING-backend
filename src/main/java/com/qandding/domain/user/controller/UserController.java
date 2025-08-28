@@ -8,6 +8,7 @@ import com.qandding.domain.user.dto.UserPostDtos;
 import com.qandding.global.common.response.CommonResponse;
 import com.qandding.global.common.response.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -122,11 +123,12 @@ public class UserController {
             @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다.")
     })
     public ResponseEntity<UserPostDtos.UserPostsResponse> getMyPosts(
-            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "페이지 번호") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "검색 키워드 (제목 또는 내용)", required = false) @RequestParam(required = false) String keyword,
             @AuthenticationPrincipal CustomUserPrincipal customPrincipal
     ) {
-        log.info("내가 쓴 글 조회 요청 - userId: {}, page: {}", customPrincipal.getUserId(), page);
-        UserPostDtos.UserPostsResponse response = userPostService.getUserPosts(customPrincipal.getUserId(), page, 10);
+        log.info("내가 쓴 글 조회 요청 - userId: {}, page: {}, keyword: {}", customPrincipal.getUserId(), page, keyword);
+        UserPostDtos.UserPostsResponse response = userPostService.getUserPosts(customPrincipal.getUserId(), page, 10, keyword);
         return ResponseEntity.ok(response);
     }
 }

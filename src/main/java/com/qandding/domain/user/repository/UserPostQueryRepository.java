@@ -29,7 +29,8 @@ public interface UserPostQueryRepository extends JpaRepository<User, Long> {
             q.created_at as createdAt, 
             NULL as originalQuestionId 
         FROM question_post q 
-        WHERE q.user_id = :userId) 
+        WHERE q.user_id = :userId 
+        AND (:keyword IS NULL OR :keyword = '' OR q.title LIKE CONCAT('%', :keyword, '%'))) 
         UNION ALL 
         (SELECT 
             'ANSWER' as postType, 
@@ -38,14 +39,15 @@ public interface UserPostQueryRepository extends JpaRepository<User, Long> {
             a.created_at as createdAt, 
             a.question_post_id as originalQuestionId 
         FROM answer_post a 
-        WHERE a.user_id = :userId) 
+        WHERE a.author_id = :userId 
+        AND (:keyword IS NULL OR :keyword = '' OR a.title LIKE CONCAT('%', :keyword, '%'))) 
         ORDER BY createdAt DESC""",
         countQuery = """
         SELECT COUNT(*) FROM (
-            (SELECT q.question_post_id FROM question_post q WHERE q.user_id = :userId) 
+            (SELECT q.question_post_id FROM question_post q WHERE q.user_id = :userId AND (:keyword IS NULL OR :keyword = '' OR q.title LIKE CONCAT('%', :keyword, '%'))) 
             UNION ALL 
-            (SELECT a.answer_post_id FROM answer_post a WHERE a.user_id = :userId)
+            (SELECT a.answer_post_id FROM answer_post a WHERE a.author_id = :userId AND (:keyword IS NULL OR :keyword = '' OR a.title LIKE CONCAT('%', :keyword, '%')))
         ) as combined_posts""",
         nativeQuery = true)
-    Page<UnifiedPostProjection> findUnifiedPostsByUserId(@Param("userId") Long userId, Pageable pageable);
+    Page<UnifiedPostProjection> findUnifiedPostsByUserId(@Param("userId") Long userId, Pageable pageable, @Param("keyword") String keyword);
 }
