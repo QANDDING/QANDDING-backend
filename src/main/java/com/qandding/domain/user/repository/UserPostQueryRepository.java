@@ -30,7 +30,8 @@ public interface UserPostQueryRepository extends JpaRepository<User, Long> {
             NULL as originalQuestionId 
         FROM question_post q 
         WHERE q.user_id = :userId 
-        AND (:keyword IS NULL OR :keyword = '' OR q.title LIKE CONCAT('%', :keyword, '%'))) 
+        AND (:keyword IS NULL OR :keyword = '' OR q.title LIKE CONCAT('%', :keyword, '%')) 
+        AND (:postType IS NULL OR :postType = '' OR :postType = 'QUESTION')) 
         UNION ALL 
         (SELECT 
             'ANSWER' as postType, 
@@ -40,14 +41,15 @@ public interface UserPostQueryRepository extends JpaRepository<User, Long> {
             a.question_post_id as originalQuestionId 
         FROM answer_post a 
         WHERE a.author_id = :userId 
-        AND (:keyword IS NULL OR :keyword = '' OR a.title LIKE CONCAT('%', :keyword, '%'))) 
+        AND (:keyword IS NULL OR :keyword = '' OR a.title LIKE CONCAT('%', :keyword, '%')) 
+        AND (:postType IS NULL OR :postType = '' OR :postType = 'ANSWER')) 
         ORDER BY createdAt DESC""",
         countQuery = """
         SELECT COUNT(*) FROM (
-            (SELECT q.question_post_id FROM question_post q WHERE q.user_id = :userId AND (:keyword IS NULL OR :keyword = '' OR q.title LIKE CONCAT('%', :keyword, '%'))) 
+            (SELECT q.question_post_id FROM question_post q WHERE q.user_id = :userId AND (:keyword IS NULL OR :keyword = '' OR q.title LIKE CONCAT('%', :keyword, '%')) AND (:postType IS NULL OR :postType = '' OR :postType = 'QUESTION')) 
             UNION ALL 
-            (SELECT a.answer_post_id FROM answer_post a WHERE a.author_id = :userId AND (:keyword IS NULL OR :keyword = '' OR a.title LIKE CONCAT('%', :keyword, '%')))
+            (SELECT a.answer_post_id FROM answer_post a WHERE a.author_id = :userId AND (:keyword IS NULL OR :keyword = '' OR a.title LIKE CONCAT('%', :keyword, '%')) AND (:postType IS NULL OR :postType = '' OR :postType = 'ANSWER'))
         ) as combined_posts""",
         nativeQuery = true)
-    Page<UnifiedPostProjection> findUnifiedPostsByUserId(@Param("userId") Long userId, Pageable pageable, @Param("keyword") String keyword);
+    Page<UnifiedPostProjection> findUnifiedPostsByUserId(@Param("userId") Long userId, Pageable pageable, @Param("keyword") String keyword, @Param("postType") String postType);
 }
