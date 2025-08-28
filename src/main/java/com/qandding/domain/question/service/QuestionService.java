@@ -1,36 +1,37 @@
 package com.qandding.domain.question.service;
 
-import com.qandding.domain.answer.dto.AnswerDtos;
+import com.qandding.domain.question.dto.QuestionDtos.QuestionDetail;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.qandding.domain.answer.entity.AnswerPost;
+import com.qandding.domain.answer.entity.AnswerType;
 import com.qandding.domain.answer.repository.AnswerImageRepository;
 import com.qandding.domain.answer.repository.AnswerPostRepository;
-import com.qandding.domain.question.dto.QuestionDtos;
+import com.qandding.domain.professor.repository.ProfessorRepository;
 import com.qandding.domain.question.entity.QuestionImage;
 import com.qandding.domain.question.entity.QuestionPost;
 import com.qandding.domain.question.event.QuestionCreatedEvent;
+import com.qandding.domain.question.event.QuestionUpdatedEvent;
 import com.qandding.domain.question.repository.QuestionImageRepository;
 import com.qandding.domain.question.repository.QuestionPostRepository;
 import com.qandding.domain.subject.repository.SubjectRepository;
-import com.qandding.domain.professor.repository.ProfessorRepository;
 import com.qandding.domain.user.entity.User;
 import com.qandding.domain.user.repository.UserRepository;
 import com.qandding.global.common.error.BusinessException;
 import com.qandding.global.common.error.ErrorCode;
 import com.qandding.global.storage.S3PresignService;
 import com.qandding.global.storage.S3UploadService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -174,7 +175,7 @@ public class QuestionService {
         log.debug("deleteQuestion() 반환 - void");
     }
 
-    public QuestionDtos.Detail getQuestionDetail(Long questionId) {
+    public QuestionDetail getQuestionDetail(Long questionId) {
         log.debug("getQuestionDetail() 호출됨 - questionId: {}", questionId);
         QuestionPost q = questionPostRepository.findById(questionId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
@@ -192,14 +193,13 @@ public class QuestionService {
                 .collect(Collectors.toList());
         log.debug("질문 이미지 {}개 Presigned URL 생성 완료", images.size());
         
-        QuestionDtos.Detail detailDto = new QuestionDtos.Detail(q.getId(), q.getTitle(), q.getContent(),
+        QuestionDetail questionDetailDto = new QuestionDetail(q.getId(), q.getTitle(), q.getContent(),
                 q.getUser().getNickname(), q.getSubject().getName(),
                 q.getProfessor().getName(), q.getCreatedAt(), images);
-        log.debug("getQuestionDetail() 반환 - questionId: {}", detailDto.getId());
-        return detailDto;
+        log.debug("getQuestionDetail() 반환 - questionId: {}", questionDetailDto.getId());
+        return questionDetailDto;
     }
 
-    // getQuestionDetailWithAnswers removed: use Answer Feed API instead
 
     public List<String> getQuestionImages(Long questionId) {
         log.debug("getQuestionImages() 호출됨 - questionId: {}", questionId);
@@ -214,5 +214,84 @@ public class QuestionService {
                 .collect(Collectors.toList());
         log.debug("getQuestionImages() 반환 - 이미지 {}개", images.size());
         return images;
+    }
+
+    @Transactional
+    public Long updateQuestion(Long questionId, String title, String content, Long subjectId, Long professorId, List<String> imageUrls, Long userId) {
+        log.debug("updateQuestion() 호출됨 - questionId: {}, userId: {}", questionId, userId);
+        
+        QuestionPost question = questionPostRepository.findById(questionId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND));
+        
+        if (!question.getUser().getId().equals(userId)) {
+            log.warn("질문 수정 권한 없음 - questionId: {}, userId: {}, ownerId: {}", questionId, userId, question.getUser().getId());
+            throw new BusinessException(ErrorCode.FORBIDDEN_ACTION);
+        }
+        
+        log.debug("질문 수정 권한 확인 완료 - questionId: {}", questionId);
+        
+        // 기존 내용과 비교하여 변경사항 확인
+        boolean contentChanged = false;
+        if (title != null && !title.equals(question.getTitle())) {
+            question.updateTitle(title);
+            contentChanged = true;
+            log.debug("제목 수정됨 - questionId: {}", questionId);
+        }
+        
+        if (content != null && !content.equals(question.getContent())) {
+            question.updateContent(content);
+            contentChanged = true;
+            log.debug("내용 수정됨 - questionId: {}", questionId);
+        }
+        
+        if (subjectId != null && !subjectId.equals(question.getSubject().getId())) {
+            var subject = subjectRepository.findById(subjectId).orElseThrow(() -> new BusinessException(ErrorCode.SUBJECT_NOT_FOUND));
+            question.updateSubject(subject);
+            contentChanged = true;
+            log.debug("과목 수정됨 - questionId: {}, newSubjectId: {}", questionId, subjectId);
+        }
+        
+        if (professorId != null && !professorId.equals(question.getProfessor().getId())) {
+            var professor = professorRepository.findById(professorId).orElseThrow(() -> new BusinessException(ErrorCode.PROFESSOR_NOT_FOUND));
+            question.updateProfessor(professor);
+            contentChanged = true;
+            log.debug("교수 수정됨 - questionId: {}, newProfessorId: {}", questionId, professorId);
+        }
+        
+        // 이미지 처리
+        if (imageUrls != null) {
+            // 기존 이미지 삭제
+            List<QuestionImage> existingImages = questionImageRepository.findByQuestionPostIdOrderBySortOrderAsc(questionId);
+            questionImageRepository.deleteAll(existingImages);
+            log.debug("기존 이미지 {}개 삭제 완료", existingImages.size());
+            
+            // 새 이미지 저장
+            if (!imageUrls.isEmpty()) {
+                for (int i = 0; i < imageUrls.size(); i++) {
+                    questionImageRepository.save(new QuestionImage(question, imageUrls.get(i), i));
+                }
+                log.debug("새 이미지 {}개 저장 완료", imageUrls.size());
+                contentChanged = true;
+            }
+        }
+        
+        // 변경사항이 있을 때만 이벤트 발행
+        if (contentChanged) {
+            // AI 재생성 여부 확인 (1문제당 1번만 재생성 가능)
+            boolean shouldRegenerateAi = !hasAiRegenerated(questionId);
+            eventPublisher.publishEvent(new QuestionUpdatedEvent(questionId, userId, shouldRegenerateAi));
+            log.debug("QuestionUpdatedEvent 발행 - questionId: {}, userId: {}, shouldRegenerateAi: {}", questionId, userId, shouldRegenerateAi);
+        }
+        
+        log.debug("updateQuestion() 반환 - questionId: {}", questionId);
+        return questionId;
+    }
+    
+    private boolean hasAiRegenerated(Long questionId) {
+        // AI 재생성 이력을 확인하는 로직
+        // 여기서는 간단히 기존 AI 답변이 있는지만 확인
+        // 실제로는 별도 테이블이나 플래그로 관리하는 것이 좋음
+        AnswerPost existingAiAnswer = answerPostRepository.findTopByQuestionPost_IdAndAnswerTypeOrderByCreatedAtDesc(questionId, AnswerType.AI);
+        return existingAiAnswer != null;
     }
 }

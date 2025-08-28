@@ -10,6 +10,7 @@ import static com.qandding.domain.user.entity.QUser.user;
 import com.qandding.domain.answer.entity.AnswerType;
 
 import com.qandding.domain.question.dto.QuestionDtos;
+import com.qandding.domain.question.dto.QuestionDtos.QuestionDetail;
 import com.qandding.domain.question.dto.QuestionStatusFilter;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
@@ -22,7 +23,6 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -114,10 +114,10 @@ public class QuestionQueryRepository {
         return pageResult;
     }
 
-    public QuestionDtos.Detail findDetailById(Long id) {
+    public QuestionDetail findDetailById(Long id) {
         log.debug("findDetailById() 호출됨 - id: {}", id);
-        QuestionDtos.Detail result = query
-                .select(Projections.constructor(QuestionDtos.Detail.class,
+        QuestionDetail result = query
+                .select(Projections.constructor(QuestionDetail.class,
                         questionPost.id,
                         questionPost.title,
                         questionPost.content,

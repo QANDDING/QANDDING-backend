@@ -29,7 +29,7 @@ public class QuestionDtos {
 
 	@Getter
 	@AllArgsConstructor
-	public static class Detail {
+	public static class QuestionDetail {
 		private final Long id;
 		private final String title;
 		private final String content;
@@ -40,7 +40,7 @@ public class QuestionDtos {
 		private final List<String> imageUrls;
 
 		// imageUrls가 없는 생성자 추가
-		public Detail(Long id, String title, String content, String authorNickname, 
+		public QuestionDetail(Long id, String title, String content, String authorNickname,
 					 String subjectName, String professorName, LocalDateTime createdAt) {
 			this.id = id;
 			this.title = title;

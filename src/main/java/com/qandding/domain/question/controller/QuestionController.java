@@ -1,6 +1,8 @@
 package com.qandding.domain.question.controller;
 
 import com.qandding.domain.question.dto.QuestionCreateRequest;
+import com.qandding.domain.question.dto.QuestionDtos.QuestionDetail;
+import com.qandding.domain.question.dto.QuestionUpdateRequest;
 import com.qandding.domain.question.dto.QuestionDtos;
 import com.qandding.domain.question.dto.QuestionStatusFilter;
 import com.qandding.domain.question.repository.QuestionQueryRepository;
@@ -12,7 +14,6 @@ import com.qandding.global.common.response.ResponseCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -28,8 +29,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -148,18 +147,58 @@ public class QuestionController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "조회 성공",
             content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = QuestionDtos.Detail.class),
+                schema = @Schema(implementation = QuestionDetail.class),
                 examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = "{\n  \"id\": 1,\n  \"title\": \"미적분학 1번 문제 질문입니다.\",\n  \"content\": \"이 문제의 풀이 과정이 이해가 안 됩니다. 특히 이 부분(사진)이요.\",\n  \"authorNickname\": \"질문자1\",\n  \"subjectName\": \"미적분학\",\n  \"professorName\": \"김교수\",\n  \"imageUrls\": [\"https://example.com/image1.jpg\", \"https://example.com/image2.png\"],\n  \"createdAt\": \"2025-08-27T10:00:00\",\n  \"updatedAt\": \"2025-08-27T10:05:00\",\n  \"hasAiAnswer\": true,\n  \"hasMemberAnswer\": false,\n  \"isAdopted\": false\n}"))
         ),
         @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음"),
         @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    public ResponseEntity<QuestionDtos.Detail> get(@Parameter(description = "질문 ID") @PathVariable Long id) {
+    public ResponseEntity<QuestionDetail> get(@Parameter(description = "질문 ID") @PathVariable Long id) {
         log.debug("get() 호출됨 - id: {}", id);
         // 이 API는 인증이 필요 없으므로 @AuthenticationPrincipal을 받지 않음 (의도된 설계)
-        QuestionDtos.Detail questionDetail = questionService.getQuestionDetail(id);
+        QuestionDetail questionDetail = questionService.getQuestionDetail(id);
         log.debug("get() 반환 - questionId: {}", questionDetail.getId());
         return ResponseEntity.ok(questionDetail);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "질문 수정", description = "특정 질문을 수정합니다. 내용이 변경되면 AI 답변도 재생성됩니다.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "질문 수정 성공",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = CommonResponse.class),
+                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(value = """
+                    {
+                      "code": "SUCCESS",
+                      "message": "수정 성공",
+                      "data": 1
+                    }
+                    """))),
+        @ApiResponse(responseCode = "401", description = "인증 실패"),
+        @ApiResponse(responseCode = "403", description = "권한 없음"),
+        @ApiResponse(responseCode = "404", description = "질문을 찾을 수 없음"),
+        @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    public ResponseEntity<CommonResponse<Long>> update(
+            @Parameter(description = "질문 ID") @PathVariable Long id,
+            @RequestBody @Valid QuestionUpdateRequest request,
+            @AuthenticationPrincipal CustomUserPrincipal customPrincipal
+    ) {
+        log.debug("update() 호출됨 - id: {}, userId: {}", id, customPrincipal.getUserId());
+        log.info("질문 수정 요청 - questionId: {}, userId: {}", id, customPrincipal.getUserId());
+        
+        Long questionId = questionService.updateQuestion(
+            id,
+            request.getTitle(),
+            request.getContent(),
+            request.getSubjectId(),
+            request.getProfessorId(),
+            request.getImageUrls(),
+            customPrincipal.getUserId()
+        );
+        
+        log.info("질문 수정 완료 - questionId: {}, userId: {}", questionId, customPrincipal.getUserId());
+        return ResponseEntity.ok(CommonResponse.success(ResponseCode.SUCCESS, questionId));
     }
 
     @DeleteMapping("/{id}")

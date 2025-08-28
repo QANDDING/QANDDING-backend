@@ -46,4 +46,30 @@ public class QuestionPost extends BaseTimeEntity {
 		this.title = title;
 		this.content = content;
 	}
+
+	public void updateTitle(String title) {
+		if (title != null && title.length() > 200) {
+			this.title = title.substring(0, 200);
+		} else if (title != null) {
+			this.title = title;
+		}
+	}
+
+	public void updateContent(String content) {
+		if (content != null) {
+			this.content = content;
+		}
+	}
+
+	public void updateSubject(Subject subject) {
+		if (subject != null) {
+			this.subject = subject;
+		}
+	}
+
+	public void updateProfessor(Professor professor) {
+		if (professor != null) {
+			this.professor = professor;
+		}
+	}
 }
