@@ -12,10 +12,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 import lombok.extern.slf4j.Slf4j;
+
+import java.nio.charset.StandardCharsets;
 
 @Tag(name = "Problem Generation (AI)", description = "AI를 이용한 문제 생성 관련 API")
 @RestController
@@ -71,7 +70,11 @@ public class ProblemGenerationController {
             // 5. Return the PDF as a file download
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_PDF);
-            headers.setContentDispositionFormData("attachment", "generated_problems.pdf");
+            headers.setContentDisposition(
+                    ContentDisposition.inline()
+                            .filename("qandding_generated_problems.pdf", StandardCharsets.UTF_8)
+                            .build()
+            );
 
             return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
 
