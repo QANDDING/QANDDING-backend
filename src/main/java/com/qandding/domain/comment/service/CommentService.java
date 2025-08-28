@@ -23,6 +23,8 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import static java.util.stream.Collectors.toList;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -211,10 +213,10 @@ public class CommentService {
         java.util.List<CommentDtos.Thread> threads = new java.util.ArrayList<>();
         for (var p : parents.getContent()) {
             var pSummary = new CommentDtos.Summary(p.getId(), p.getUser().getNickname(), p.getContent(), p.getCreatedAt(),
-                    imageMap.getOrDefault(p.getId(), java.util.List.of()));
+                    imageMap.getOrDefault(p.getId(), java.util.List.of()), 0, 0);
             var child = repliesMap.getOrDefault(p.getId(), java.util.List.of()).stream()
                     .map(c -> new CommentDtos.Summary(c.getId(), c.getUser().getNickname(), c.getContent(), c.getCreatedAt(),
-                            imageMap.getOrDefault(c.getId(), java.util.List.of())))
+                            imageMap.getOrDefault(c.getId(), java.util.List.of()), 0, 0))
                     .toList();
             threads.add(new CommentDtos.Thread(pSummary, child));
         }

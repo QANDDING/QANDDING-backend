@@ -88,7 +88,9 @@ public class CommentController {
                             "nickname": "parent_user",
                             "content": "이것은 부모 댓글입니다.",
                             "createdAt": "2025-08-21T10:00:00Z",
-                            "imageUrls": []
+                            "imageUrls": [],
+                            "replyCount": 1,
+                            "totalCommentCount": 2
                           },
                           "replies": [
                             {
@@ -96,7 +98,9 @@ public class CommentController {
                               "nickname": "reply_user",
                               "content": "이것은 대댓글입니다.",
                               "createdAt": "2025-08-21T10:05:00Z",
-                              "imageUrls": []
+                              "imageUrls": [],
+                              "replyCount": 0,
+                              "totalCommentCount": 0
                             }
                           ]
                         }
@@ -105,7 +109,8 @@ public class CommentController {
                       "size": 10,
                       "totalElements": 1,
                       "totalPages": 1,
-                      "last": true
+                      "last": true,
+                      "totalCommentsOverall": 2
                     }
                     """)))
     })

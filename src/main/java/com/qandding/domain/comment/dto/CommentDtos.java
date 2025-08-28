@@ -17,18 +17,22 @@ public class CommentDtos {
 		private final String content;
 		private final LocalDateTime createdAt;
 		private final List<String> imageUrls;
+		private final int replyCount;
+		private final int totalCommentCount;
 
 		// For QueryDSL constructor projection without images
-		public Summary(Long id, String nickname, String content, LocalDateTime createdAt) {
+		public Summary(Long id, String nickname, String content, LocalDateTime createdAt, int replyCount, int totalCommentCount) {
 			this.id = id;
 			this.nickname = nickname;
 			this.content = content;
 			this.createdAt = createdAt;
 			this.imageUrls = null;
+			this.replyCount = replyCount;
+			this.totalCommentCount = totalCommentCount;
 		}
 
 		public static Summary from(Comment c) {
-			return new Summary(c.getId(), c.getUser().getNickname(), c.getContent(), c.getCreatedAt(), null);
+			return new Summary(c.getId(), c.getUser().getNickname(), c.getContent(), c.getCreatedAt(), 0, 0); // Default values, will be populated by query
 		}
 	}
 
