@@ -27,6 +27,17 @@ public class SecurityConfig {
   private final OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
   private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
 
+    @Bean
+    @Order(0)
+    SecurityFilterChain swaggerChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**",
+                        "/swagger-resources/**", "/webjars/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .csrf(AbstractHttpConfigurer::disable);
+        return http.build();
+    }
+
   // API 엔드포인트를 위한 보안 설정 (Stateless, JWT 사용)
   @Bean
   @Order(1)
