@@ -65,7 +65,8 @@ public class SecurityConfig {
     http
         .authorizeHttpRequests(auth -> auth
             // "/", "/oauth2/**" 등 로그인 관련 경로는 모두 허용
-            .requestMatchers("/", "/login/**", "/oauth2/**", "/error").permitAll()
+            .requestMatchers("/", "/login/**", "/oauth2/**", "/error",
+                "/swagger-ui/**", "/v3/api-docs/**", "/favicon.ico").permitAll()
             .anyRequest().authenticated() // 그 외의 웹 경로는 인증 필요 (필요시 denyAll() 또는 다른 규칙 적용)
         )
         .oauth2Login(oauth -> oauth
