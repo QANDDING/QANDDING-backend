@@ -182,6 +182,10 @@ public class CommentService {
         log.debug("상위 댓글 {}개 조회", parents.getNumberOfElements());
         java.util.List<Long> parentIds = parents.map(Comment::getId).toList();
 
+        // 전체 댓글 개수 조회 (부모 + 대댓글)
+        long totalCommentsOverall = commentRepository.countByAnswerPost_Id(answerPostId);
+        log.debug("전체 댓글 개수 조회 - totalCommentsOverall: {}", totalCommentsOverall);
+
         java.util.Map<Long, java.util.List<String>> imageMap = new java.util.HashMap<>();
         if (!parentIds.isEmpty()) {
             var images = commentImageRepository.findByCommentIdInOrderBySortOrderAsc(parentIds);
@@ -213,15 +217,15 @@ public class CommentService {
         java.util.List<CommentDtos.Thread> threads = new java.util.ArrayList<>();
         for (var p : parents.getContent()) {
             var pSummary = new CommentDtos.Summary(p.getId(), p.getUser().getNickname(), p.getContent(), p.getCreatedAt(),
-                    imageMap.getOrDefault(p.getId(), java.util.List.of()), 0, 0);
+                    imageMap.getOrDefault(p.getId(), java.util.List.of()), repliesMap.getOrDefault(p.getId(), java.util.List.of()).size(), (int) totalCommentsOverall);
             var child = repliesMap.getOrDefault(p.getId(), java.util.List.of()).stream()
                     .map(c -> new CommentDtos.Summary(c.getId(), c.getUser().getNickname(), c.getContent(), c.getCreatedAt(),
-                            imageMap.getOrDefault(c.getId(), java.util.List.of()), 0, 0))
+                            imageMap.getOrDefault(c.getId(), java.util.List.of()), 0, (int) totalCommentsOverall))
                     .toList();
             threads.add(new CommentDtos.Thread(pSummary, child));
         }
         log.debug("댓글 스레드 {}개 생성", threads.size());
-        Page<CommentDtos.Thread> pageResult = new PageImpl<>(threads, pageable, parents.getTotalElements());
+        Page<CommentDtos.Thread> pageResult = new PageImpl<>(threads, pageable, totalCommentsOverall);
         log.debug("listThreads() 반환 - Page: {}/{} (총 {}개)", pageResult.getNumber(), pageResult.getTotalPages(), pageResult.getTotalElements());
         return pageResult;
     }
